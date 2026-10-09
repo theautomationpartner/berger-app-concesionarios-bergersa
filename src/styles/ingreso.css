@@ -1,0 +1,344 @@
+/* Pantallas del ingreso: configuración del autenticador, códigos de recuperación y código del día.
+
+   Fondo bordó de BERGER a pantalla completa y una tarjeta blanca al centro. Es deliberadamente
+   distinto del resto de la app, que es blanco: marca que todavía no se está adentro. */
+
+.ingreso {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 100%;
+  padding: 28px var(--gutter);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Del bordó profundo al rojo de la marca: el rojo puro a pantalla completa cansa la vista, y el
+     degradado deja el logo —que es rojo— bien recortado sobre la tarjeta blanca. */
+  background:
+    radial-gradient(120% 90% at 85% 10%, rgba(225, 27, 34, 0.55) 0%, rgba(225, 27, 34, 0) 60%),
+    linear-gradient(145deg, #4a0609 0%, #7a0d12 45%, #a3121a 100%);
+  color: #fff;
+}
+
+.ingreso-tarjeta {
+  width: 100%;
+  max-width: 440px;
+  padding: 30px 32px 28px;
+  border-radius: 18px;
+  background: #fff;
+  color: var(--text-dark);
+  box-shadow:
+    0 24px 60px rgba(35, 3, 5, 0.45),
+    0 2px 8px rgba(35, 3, 5, 0.25);
+}
+.ingreso-tarjeta--ancha {
+  max-width: 520px;
+}
+
+.ingreso-logo {
+  display: block;
+  height: 54px;
+  width: auto;
+  max-width: 220px;
+  margin: 0 auto 22px;
+  object-fit: contain;
+}
+
+.ingreso-tit {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.25;
+  color: var(--text-dark);
+}
+.ingreso-bajada {
+  margin: 8px 0 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-mid);
+}
+.ingreso-nota {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-gray);
+}
+.ingreso-pie {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ===== Cómo configurar: QR o clave existente (sólo ADMIN) ===== */
+.ingreso-modos {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--tint-neutral);
+}
+.ingreso-modo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-gray);
+  cursor: pointer;
+}
+.ingreso-modo--activo {
+  background: #fff;
+  color: var(--berger-red-dark);
+  box-shadow: var(--sombra);
+}
+
+/* Campo donde se pega una clave que ya existe. Monoespaciada: se lee carácter por carácter, que
+   es como se revisa que no falte un pedazo. */
+.ingreso-clave-propia {
+  height: 52px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* ===== Configuración: pasos, QR y clave ===== */
+.ingreso-pasos {
+  list-style: none;
+  margin: 4px 0 12px;
+}
+.ingreso-pasos li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-mid);
+}
+.ingreso-paso-num {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--berger-red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ingreso-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 244px;
+  height: 244px;
+  margin: 4px auto 10px;
+  padding: 11px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: #fff;
+}
+.ingreso-qr img {
+  display: block;
+  width: 220px;
+  height: 220px;
+  /* El QR se escala sin suavizado: difuminado, algunas cámaras no lo leen. */
+  image-rendering: pixelated;
+}
+.ingreso-qr .spin {
+  width: 22px;
+  height: 22px;
+}
+.ingreso-clave {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.ingreso-clave-caja {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed var(--tint-input-bd);
+  border-radius: 10px;
+  background: var(--tint-input);
+}
+.ingreso-clave-txt {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #0b4a8f;
+  word-break: break-all;
+  text-align: center;
+}
+
+/* ===== Campo del código de 6 dígitos ===== */
+/* Un solo input con aspecto de casillas: el espaciado entre letras separa los dígitos, y el
+   subrayado de fondo dibuja los seis lugares. */
+.codigo {
+  display: block;
+  width: 100%;
+  height: 68px;
+  padding: 0 0 0 0.5em;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.5em;
+  text-align: center;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.codigo::placeholder {
+  color: #d3d7df;
+}
+.codigo:focus {
+  outline: none;
+  border-color: var(--berger-red);
+  box-shadow: 0 0 0 4px rgba(225, 27, 34, 0.14);
+}
+.codigo:disabled {
+  background: var(--tint-neutral);
+  color: var(--text-gray);
+}
+
+.ingreso-aviso {
+  margin: 12px 0 0;
+}
+
+.ingreso-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ingreso-recuperacion {
+  height: 52px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ingreso-accion {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 14px;
+  font-size: 15px;
+}
+.ingreso-form .ingreso-accion {
+  margin-top: 0;
+}
+
+.ingreso-enlaces {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 16px;
+}
+
+/* ===== Códigos de recuperación ===== */
+.ingreso-codigos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: 12px;
+  background: var(--tint-neutral);
+}
+.ingreso-codigo {
+  display: block;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--text-dark);
+  user-select: all;
+}
+.ingreso-copiar {
+  width: 100%;
+  margin-top: 12px;
+}
+.ingreso-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-mid);
+  cursor: pointer;
+}
+.ingreso-check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--berger-red);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .ingreso {
+    justify-content: flex-start;
+    padding-top: 22px;
+  }
+  .ingreso-tarjeta {
+    padding: 24px 18px 22px;
+    border-radius: 16px;
+  }
+  .ingreso-logo {
+    height: 46px;
+    margin-bottom: 18px;
+  }
+  .ingreso-tit {
+    font-size: 20px;
+  }
+  .ingreso-bajada {
+    font-size: 13.5px;
+  }
+  .codigo {
+    height: 62px;
+    font-size: 28px;
+    letter-spacing: 0.4em;
+  }
+  .ingreso-codigo {
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+}

@@ -1,0 +1,154 @@
+/* Tokens de diseño y reset.
+   La base es el look de monday que ya usan las otras apps del equipo (azul de acción, verde de
+   confirmación, grises de texto). Lo propio de BERGER es el rojo de marca: se usa como ACENTO
+   —barra del logo, foco de la operación activa, totales— y nunca como fondo de una superficie
+   grande, para que no compita con el estado de los datos. */
+:root {
+  /* Marca */
+  --berger-red: #e11b22;
+  --berger-red-dark: #b81419;
+  --berger-red-soft: #fdecec;
+  --berger-red-bd: #f6c6c8;
+
+  /* Acción y estado (heredados del sistema monday) */
+  --primary-blue: #0073ea;
+  --primary-blue-hover: #0060c2;
+  --green: #00c875;
+  --green-dark: #00874d;
+  --green-soft: #eef9f2;
+  --green-bd: #bfe6cf;
+  --yellow: #ffcb00;
+  --orange: #fdab3d;
+  --purple: #a25ddc;
+
+  /* Texto y bordes */
+  --text-dark: #1f2937;
+  --text-mid: #475467;
+  --text-gray: #667085;
+  --border: #d0d4e4;
+  --border-soft: #e4e7ec;
+  --bg: #ffffff;
+
+  /* Superficies: las cajas de cada sección son blanco grisáceo para despegarse del fondo
+     blanco puro de la app. Cada entonación marca la función del bloque. */
+  --tint-neutral: #f7f8fa;
+  --tint-neutral-bd: #e4e7ee;
+  --tint-data: #fcfcfb;
+  --tint-data-bd: #e9e9e4;
+  --tint-input: #eef5ff;
+  --tint-input-bd: #bcd6f5;
+  --tint-summary: #eef9f2;
+  --tint-summary-bd: #bfe6cf;
+
+  --radio: 10px;
+  --sombra: 0 1px 3px rgba(16, 24, 40, 0.06);
+  --sombra-alta: 0 4px 12px rgba(16, 24, 40, 0.1);
+
+  /* Margen lateral de la app. Es UNA variable y no un número repetido porque en celular tiene
+     que achicarse en todos lados a la vez: si un bloque se queda en 24px, su contenido deja de
+     alinearse con el resto y se nota más que el propio margen. */
+  --gutter: 24px;
+
+  /* Alto mínimo de todo lo que se toca. 44px es el umbral por debajo del cual un dedo empieza a
+     errarle al control en un celular. */
+  --toque: 44px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+html,
+body {
+  /* `100dvh` y no `100vh`: en el navegador del celular —y en el WebView de la app de monday— la
+     barra de direcciones aparece y desaparece con el scroll, y `100vh` mide la ventana SIN esa
+     barra. El resultado es una app más alta que la pantalla, con el pie de acción cortado justo
+     al abrirla. La unidad dinámica sigue ese alto real. */
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  /* El WebView de Android agranda las fuentes por su cuenta al rotar; esto lo desactiva. */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Reserva para el ancho de `100dvh` en navegadores viejos que no la conocen. */
+@supports not (height: 100dvh) {
+  html,
+  body {
+    height: 100vh;
+  }
+}
+
+#root {
+  display: flex;
+  height: 100%;
+  color: var(--text-dark);
+  background: var(--bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Sin esto, tocar un botón en Android deja un rectángulo azul encima durante un instante. */
+button,
+a,
+label,
+[role='tab'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c9ccd6;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #aeb2be;
+}
+
+/* Utilidades mínimas */
+.font-b {
+  font-weight: 600;
+}
+.xs {
+  font-size: 11px;
+  color: var(--text-gray);
+}
+.muted {
+  color: var(--text-gray);
+}
+.t-green {
+  color: var(--green-dark);
+}
+.t-red {
+  color: var(--berger-red);
+}
+.nowrap {
+  white-space: nowrap;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Celular =====
+   El corte es por VIEWPORT y no por contenedor a propósito: no describe un panel angosto dentro
+   de una pantalla grande, sino un dispositivo chico, donde además cambian el tamaño mínimo de
+   los controles y el margen de la app. */
+@media (max-width: 640px) {
+  :root {
+    --gutter: 12px;
+  }
+  .xs {
+    font-size: 12px;
+  }
+}

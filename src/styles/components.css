@@ -1,0 +1,3018 @@
+/* Piezas reutilizables: barra de marca, selector de operación, stepper, cards, botones, chips. */
+
+/* ===== Barra de marca ===== */
+/* El logo abre la barra, contra el margen izquierdo. El alto lo fija la caja y el ancho lo pone
+   la imagen (`width: auto` + `object-fit: contain`): entra COMPLETO, sin recorte ni deformación,
+   con cualquier proporción de archivo. El filete separa la marca del título. */
+.marca {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px var(--gutter);
+  background: #fff;
+  border-bottom: 1px solid var(--border-soft);
+}
+/* Sello de versión: dice qué build está corriendo. Sin esto, saber si un deploy tomó el último
+   commit es adivinar mirando la interfaz. */
+/* Lado derecho de la barra: con qué perfil se entró, cómo salir y el build. */
+.marca-derecha {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.marca-perfil {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.marca-salir {
+  color: var(--berger-red-dark);
+}
+.marca-salir:hover:not(:disabled) {
+  background: var(--berger-red-soft);
+  color: var(--berger-red-dark);
+}
+.marca-build {
+  align-self: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: #6b7bb5;
+  background: #eef0fd;
+  border: 1px solid #d5d9f7;
+  border-radius: 999px;
+  padding: 3px 9px;
+  flex: 0 0 auto;
+}
+
+/* ===== Selector de operación ===== */
+.ops {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@container (max-width: 900px) {
+  .ops {
+    grid-template-columns: 1fr;
+  }
+}
+.op {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  padding: 13px 15px;
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: var(--radio);
+  background: var(--tint-neutral);
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background 0.14s ease;
+}
+.op:hover {
+  border-color: var(--berger-red-bd);
+  background: #fff;
+  box-shadow: var(--sombra);
+}
+/* La operación elegida se marca con el rojo de BERGER: es el único acento de marca que cambia
+   de estado, así que alcanza para ubicar en qué parte del circuito está parado el usuario. */
+.op--activa {
+  background: #fff;
+  border-color: var(--berger-red);
+  box-shadow: 0 0 0 3px rgba(225, 27, 34, 0.12);
+}
+.op-ic {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  color: var(--text-gray);
+}
+.op--activa .op-ic {
+  background: var(--berger-red);
+  border-color: var(--berger-red);
+  color: #fff;
+}
+.op-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.op-tit {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+/* El ordinal dice que las operaciones son una secuencia y no tres opciones sueltas. */
+.op-nro {
+  color: var(--berger-red);
+  font-weight: 800;
+}
+.op-det {
+  font-size: 12px;
+  color: var(--text-gray);
+  line-height: 1.35;
+}
+
+/* ===== Stepper ===== */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-gray);
+  background: none;
+  border: none;
+  padding: 0;
+}
+.step-nom {
+  max-width: 92px;
+  text-align: center;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+/* Sólo uno de los dos rótulos se ve por vez; el intercambio está al pie del archivo. */
+.step-nom--corto {
+  display: none;
+}
+.sic {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text-gray);
+}
+.step.done {
+  color: var(--text-dark);
+}
+.step.done .sic {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.step.cur {
+  color: var(--text-dark);
+  font-weight: 700;
+}
+.step.cur .sic {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: #fff;
+  /* Halo que respira: sin él, el color solo no alcanza para ubicar de un vistazo la etapa
+     actual. `alternate` sube y baja por el mismo camino, así no hay salto al reiniciar. */
+  animation: paso-brillo 1.8s ease-in-out infinite alternate;
+}
+@keyframes paso-brillo {
+  from {
+    box-shadow: 0 0 0 0 rgba(0, 115, 234, 0.35);
+  }
+  to {
+    box-shadow: 0 0 0 6px rgba(0, 115, 234, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step.cur .sic {
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(0, 115, 234, 0.22);
+  }
+}
+.step--nav {
+  cursor: pointer;
+}
+.step--nav .sic {
+  transition: transform 0.12s ease;
+}
+.step--nav:hover .sic {
+  transform: scale(1.06);
+}
+.step--off {
+  cursor: default;
+}
+.sline {
+  height: 3px;
+  width: 40px;
+  flex: 0 1 auto;
+  background: var(--border);
+  border-radius: 2px;
+  /* Baja el conector al eje del círculo (28px de alto, centro en 14px, menos la mitad de sus
+     propios 3px). Sin esto queda arriba de todo, porque el stepper alinea por el tope. */
+  margin-top: 12.5px;
+  transition: background 0.25s ease;
+}
+.sline.done {
+  background: var(--green);
+}
+
+/* ===== Encabezado de sección ===== */
+.sec-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sec-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-blue);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.sec-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.sec-tit {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+.sec-det {
+  font-size: 13px;
+  color: var(--text-gray);
+  line-height: 1.45;
+}
+
+/* ===== Cards ===== */
+/* Las cajas de sección son blanco grisáceo sobre el fondo blanco de la app: eso es lo que las
+   separa sin necesidad de una sombra fuerte ni de un borde oscuro. */
+.card {
+  background: var(--tint-neutral);
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: var(--radio);
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--sombra);
+}
+.card--data {
+  background: var(--tint-data);
+  border-color: var(--tint-data-bd);
+}
+.card--input {
+  background: var(--tint-input);
+  border-color: var(--tint-input-bd);
+}
+.card--summary {
+  background: var(--tint-summary);
+  border-color: var(--tint-summary-bd);
+}
+.card--flush {
+  margin-bottom: 0;
+}
+.ctitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 14px;
+}
+/* Importe en el encabezado de una card: del lado derecho, como todos los totales. */
+.ctitle-importe {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  text-align: right;
+}
+.ctitle-importe-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-gray);
+}
+.ctitle-importe-val {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+}
+.ctitle-cont {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-gray);
+}
+
+/* ===== Botones ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #fff;
+  color: var(--text-dark);
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn--primario {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: #fff;
+}
+.btn--primario:hover:not(:disabled) {
+  background: var(--primary-blue-hover);
+  border-color: var(--primary-blue-hover);
+}
+/* Acción que IMPACTA en monday: va en el rojo de la marca porque no se puede deshacer desde la
+   app, y tiene que distinguirse de "seguir al paso siguiente". */
+.btn--marca {
+  background: var(--berger-red);
+  border-color: var(--berger-red);
+  color: #fff;
+}
+.btn--marca:hover:not(:disabled) {
+  background: var(--berger-red-dark);
+  border-color: var(--berger-red-dark);
+}
+.btn--borde {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text-mid);
+}
+.btn--borde:hover:not(:disabled) {
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+.btn--texto {
+  background: none;
+  border: none;
+  color: var(--text-gray);
+  padding: 8px 10px;
+}
+.btn--texto:hover:not(:disabled) {
+  background: var(--tint-neutral);
+  color: var(--text-dark);
+}
+.btn--chico {
+  min-height: 32px;
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+/* ===== Chips y badges ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.chip--interno {
+  background: #eef0fd;
+  border-color: #d5d9f7;
+  color: #3f45a0;
+  font-variant-numeric: tabular-nums;
+}
+.chip--verde {
+  background: var(--green-soft);
+  border-color: var(--green-bd);
+  color: var(--green-dark);
+}
+.chip--rojo {
+  background: var(--berger-red-soft);
+  border-color: var(--berger-red-bd);
+  color: var(--berger-red-dark);
+}
+.chip--azul {
+  background: #eaf2fd;
+  border-color: #c9dcf8;
+  color: #0060c2;
+}
+.chip--ambar {
+  background: #fff6e5;
+  border-color: #ffe1a8;
+  color: #8a5a00;
+}
+.chip--violeta {
+  background: #f5f0fd;
+  border-color: #e2d6f6;
+  color: #6b3fa0;
+}
+.chip--teal {
+  background: #e6f7f6;
+  border-color: #b7e4e0;
+  color: #0f766e;
+}
+.chip--indigo {
+  background: #eef0fd;
+  border-color: #d5d9f7;
+  color: #3f45a0;
+}
+/* Modelo del tractor. Magenta porque no se parece a ningún color de estado: el modelo es un
+   atributo, y no tiene que poder leerse como una etapa del circuito. */
+.chip--magenta {
+  background: #fdf2fb;
+  border-color: #f5cdea;
+  color: #a1227f;
+}
+/* Rodado: lima si lo tiene, naranja si no. Naranja y no rojo, porque "Sin Rodado" es una
+   condición del tractor, no un error del dato. */
+.chip--lima {
+  background: #f3fbe6;
+  border-color: #d3ecae;
+  color: #4d7c0f;
+}
+.chip--naranja {
+  background: #fff3eb;
+  border-color: #fdd2b5;
+  color: #c2410c;
+}
+
+/* ===== Campos ===== */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.campo-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.campo-ayuda {
+  font-size: 11px;
+  color: var(--text-gray);
+}
+.input,
+.select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--text-dark);
+  /* Los `select` y los `date` de iOS ignoran el alto si conservan su apariencia nativa. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.14);
+}
+.input--num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-weight: 600;
+}
+
+/* ===== Mensajes ===== */
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 16px;
+  border: 1px solid;
+}
+.aviso i {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+.aviso--error {
+  background: var(--berger-red-soft);
+  border-color: var(--berger-red-bd);
+  color: #8f1015;
+}
+.aviso--info {
+  background: #eef5ff;
+  border-color: var(--tint-input-bd);
+  color: #0b4a8f;
+}
+.aviso--ok {
+  background: var(--green-soft);
+  border-color: var(--green-bd);
+  color: var(--green-dark);
+}
+.aviso--alerta {
+  background: #fff6e5;
+  border-color: #ffe1a8;
+  color: #8a5a00;
+}
+
+/* ===== Vacíos y carga ===== */
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-gray);
+}
+.vacio-ic {
+  font-size: 26px;
+  color: #c4c9d4;
+}
+.vacio-tit {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.vacio-det {
+  font-size: 13px;
+  max-width: 440px;
+  line-height: 1.5;
+}
+.spin {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+.spin--oscuro {
+  border-color: rgba(0, 0, 0, 0.12);
+  border-top-color: var(--primary-blue);
+}
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== Celular ===== */
+@media (max-width: 640px) {
+  .marca {
+    gap: 10px;
+    padding: 8px var(--gutter);
+  }
+  /* El sello de build es información de diagnóstico: en una pantalla chica compite con la
+     navegación por el poco ancho que hay. Sigue en el DOM para inspeccionarlo. */
+  .marca-build {
+    display: none;
+  }
+  .marca-derecha {
+    gap: 2px;
+  }
+  .marca-perfil {
+    max-width: 110px;
+  }
+  .marca-salir-txt {
+    display: none;
+  }
+
+  /* Las tarjetas de operación pasan a ser pestañas en una fila que scrollea. Apiladas con su
+     descripción se comían la pantalla entera antes de mostrar un solo dato. */
+  .ops {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    /* Los márgenes negativos dejan que las pestañas lleguen al borde al scrollear, y el padding
+       las devuelve a la línea del resto del contenido cuando están quietas. */
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .ops::-webkit-scrollbar {
+    display: none;
+  }
+  .op {
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 13px;
+    min-height: var(--toque);
+    scroll-snap-align: start;
+  }
+  .op-ic {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+  .op-tit {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  /* La descripción se va: en una pestaña de una línea no entra, y el título más el ordinal ya
+     dicen qué es cada operación. La explicación completa vuelve en el encabezado del paso. */
+  .op-det {
+    display: none;
+  }
+
+  /* Stepper compacto: rótulos cortos y conectores que ceden ancho antes que desbordar. */
+  .stepper {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .step-nom--largo {
+    display: none;
+  }
+  .step-nom--corto {
+    display: block;
+    max-width: 78px;
+    font-size: 11px;
+  }
+  .sline {
+    width: auto;
+    min-width: 10px;
+  }
+
+  .sec-tit {
+    font-size: 18px;
+  }
+  .sec-det {
+    font-size: 12.5px;
+  }
+  .sec-num {
+    width: 25px;
+    height: 25px;
+    font-size: 12px;
+  }
+
+  .card {
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  /* 16px no es una decisión estética: por debajo de ese tamaño, iOS hace zoom sobre el campo al
+     enfocarlo y deja la pantalla corrida, con el resto del formulario fuera de la vista. */
+  .input,
+  .select {
+    height: var(--toque);
+    font-size: 16px;
+  }
+  .btn {
+    min-height: var(--toque);
+  }
+  .btn--chico {
+    min-height: 34px;
+  }
+
+  .vacio {
+    padding: 30px 14px;
+  }
+}
+
+/* ============================================================================
+   Desplegable propio
+   ============================================================================
+   El <select> nativo dibuja su lista con el motor del sistema operativo: en Windows queda una caja
+   gris de bordes cuadrados que no respeta ni los colores ni los tamaños de la app, y adentro del
+   iframe de monday desentona todavía más. Éste usa los mismos elementos que el resto. */
+.desp {
+  position: relative;
+}
+.desp-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-dark);
+  text-align: left;
+  cursor: pointer;
+}
+.desp-btn:hover:not(:disabled) {
+  border-color: var(--text-gray);
+}
+.desp-btn:focus-visible,
+.desp-btn--abierto {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.15);
+}
+.desp-btn:disabled {
+  background: var(--tint-neutral);
+  color: var(--text-gray);
+  cursor: not-allowed;
+}
+.desp-val {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.desp-val--vacio {
+  color: var(--text-gray);
+  font-weight: 500;
+}
+.desp-flecha {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-gray);
+}
+
+.desp-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  min-width: 220px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--sombra-alta);
+}
+.desp-buscar {
+  width: 100%;
+  margin-bottom: 4px;
+}
+.desp-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.desp-op {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-dark);
+  text-align: left;
+  cursor: pointer;
+}
+/* El foco lo maneja el teclado y el mouse por igual: una sola clase para los dos, así no puede
+   quedar una fila resaltada por el mouse y otra por las flechas. */
+.desp-op--foco {
+  background: var(--tint-input);
+}
+.desp-op--elegida .desp-op-rot {
+  font-weight: 800;
+  color: #0a4f9e;
+}
+.desp-op--limpiar .desp-op-rot {
+  color: var(--text-gray);
+  font-style: italic;
+}
+.desp-op-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.desp-op-rot {
+  font-weight: 600;
+  line-height: 1.3;
+}
+.desp-op-det {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+.desp-op-tic {
+  font-size: 11px;
+  color: var(--primary-blue);
+}
+.desp-vacio {
+  padding: 10px;
+  font-size: 12.5px;
+  color: var(--text-gray);
+  text-align: center;
+}
+
+/* Un chip neutro, para decir "no hay nada" sin que parezca un problema. */
+.chip--gris {
+  background: var(--tint-neutral);
+  border-color: var(--tint-neutral-bd);
+  color: var(--text-gray);
+}
+
+/* Varias opciones que se eligen tocando, en vez de un desplegable múltiple: son pocas y se ven
+   todas de una, así que elegir dos es un toque y un toque, no abrir, elegir, abrir, elegir. */
+.opciones-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
+ * Una opción que se elige tocando.
+ *
+ * Elegida y no elegida tienen que distinguirse a un metro de la pantalla, porque son la diferencia
+ * entre habilitar una app y no habilitarla. Por eso no cambia sólo el borde: la elegida se pinta
+ * entera del color de su grupo y la que no, se apaga. El círculo de la izquierda está siempre, con
+ * el mismo tamaño, así que marcar y desmarcar no mueve nada de lugar.
+ *
+ * El color sale de --acento, que pone cada grupo: las apps y los tableros del despachante son dos
+ * decisiones distintas y conviene que no se confundan entre sí.
+ */
+.chip--opcion {
+  --acento: var(--primary-blue);
+  --acento-suave: #e6f1fd;
+  --acento-borde: #a9cff6;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--tint-neutral);
+  color: var(--text-gray);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* El círculo: vacío mientras no está elegida, con el tilde adentro cuando lo está. */
+.chip--opcion::before {
+  content: '✓';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: transparent;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.chip--opcion:hover {
+  border-color: var(--acento-borde);
+  background: var(--acento-suave);
+  color: var(--text-dark);
+}
+
+.chip--opcion:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.chip--opcion[aria-pressed='true'] {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.18);
+}
+
+.chip--opcion[aria-pressed='true']::before {
+  background: #fff;
+  border-color: #fff;
+  color: var(--acento);
+}
+
+.chip--opcion[aria-pressed='true']:hover {
+  filter: brightness(1.06);
+}
+
+/* Los tableros del despachante, en violeta: se eligen en el mismo formulario que las apps y son
+   otra cosa. */
+.chip--opcion-violeta {
+  --acento: var(--purple);
+  --acento-suave: #f4ecfb;
+  --acento-borde: #dcc3ef;
+}
+
+/* ===== VENTA · alta de cuentas y contactos ===== */
+
+/* Un aviso que no es ni un problema ni un logro: contexto. El resumen de los contactos que ya
+   tiene la cuenta es eso — no hay nada que corregir, sólo algo que conviene mirar antes. */
+.aviso--neutro {
+  background: var(--tint-neutral);
+  border-color: var(--tint-neutral-bd);
+  color: var(--text-mid);
+}
+
+.lista-compacta {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lista-compacta li {
+  line-height: 1.5;
+}
+
+/*
+ * El teléfono, en partes.
+ *
+ * El prefijo del país no es un campo: es el dato que la app ya sabe por el país elegido, y
+ * mostrarlo como casillero invitaría a escribirlo de nuevo. Va como etiqueta pegada al área.
+ */
+.tel-partes {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+/* El país es un desplegable entero, así que necesita ancho propio o el nombre queda cortado. */
+.tel-pais {
+  flex: 0 0 170px;
+  min-width: 0;
+}
+/*
+ * El prefijo no es un campo: es lo que la app ya sabe por el país elegido. Va como etiqueta —no
+ * como casillero gris— para que nadie intente escribirlo de nuevo, y con el tono de un dato
+ * resuelto en vez del de un campo deshabilitado.
+ */
+.tel-prefijo {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #e6f1fd;
+  border: 1px solid #c9e0fa;
+  color: #0b4da2;
+  font-weight: 800;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* La característica es corta y el abonado largo: con el mismo ancho se escriben cuatro dígitos en
+   un campo de veinte, y el número —que es el que más se tipea— queda apretado. */
+.tel-area {
+  flex: 0 0 130px;
+}
+.tel-numero {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* En el celular los cuatro no entran en una línea: el país arriba, el resto abajo. */
+@media (max-width: 560px) {
+  .tel-partes {
+    flex-wrap: wrap;
+  }
+  .tel-pais {
+    flex: 1 1 100%;
+  }
+  .tel-area {
+    flex: 0 0 110px;
+  }
+}
+
+/*
+ * Un campo que no entra en la grilla del formulario.
+ *
+ * La grilla arma columnas de 190px, que es lo correcto para un nombre o una ciudad y lo
+ * equivocado para un texto largo o para cuatro casilleros de teléfono: quedaban del ancho de un
+ * campo de provincia.
+ */
+.campo--suelto {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+/* ===== Buscador de operaciones ===== */
+
+/*
+ * Con diez operaciones repartidas en dos áreas y tres niveles, llegar a una son cuatro clics y
+ * saber de antemano dónde vive. Quien usa la app todos los días escribe dos letras y entra.
+ */
+.buscador {
+  position: relative;
+  margin-bottom: 18px;
+}
+.buscador-campo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+}
+.buscador-campo:focus-within {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.14);
+}
+.buscador-campo > i {
+  color: var(--text-gray);
+  font-size: 14px;
+}
+.buscador-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 13px 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-dark);
+}
+/* El navegador dibuja su propia cruz en los `type="search"`, con otro aspecto en cada uno. */
+.buscador-input::-webkit-search-cancel-button {
+  display: none;
+}
+.buscador-limpiar {
+  border: none;
+  background: none;
+  color: var(--text-gray);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.buscador-limpiar:hover {
+  background: var(--tint-neutral);
+  color: var(--text-dark);
+}
+
+.buscador-resultados {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.1);
+  overflow: hidden;
+}
+.buscador-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.buscador-item:last-child {
+  border-bottom: none;
+}
+.buscador-item--on {
+  background: #e6f1fd;
+}
+.buscador-item-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--berger-red-soft);
+  color: var(--berger-red);
+  flex: 0 0 auto;
+}
+.buscador-item-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.buscador-item-tit {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+/* Dónde vive: con dos "ACTUALIZAR OP" en la app, el título solo no alcanza para saber cuál es. */
+.buscador-item-donde {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+.buscador-item-flecha {
+  color: var(--text-gray);
+  font-size: 12px;
+}
+.buscador-vacio {
+  padding: 14px;
+  font-size: 13px;
+  color: var(--text-gray);
+}
+
+/* Las áreas del inicio: dos tarjetas, más grandes que las operaciones, porque son la primera
+   pregunta y descartan la mitad de la app. */
+.panel-opciones--areas {
+  gap: 12px;
+}
+.panel-opcion--area .panel-opcion-tit {
+  font-size: 17px;
+  letter-spacing: 0.02em;
+}
+
+/* ===== Desplegable de varias opciones ===== */
+
+/* Cuántas van elegidas. Con el rótulo cortado por el ancho —"Cliente, Transp…"— el número es lo
+   único que dice que hay más de las que se leen. */
+.desp-cuenta {
+  flex: 0 0 auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--primary-blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.desp-op--multi {
+  gap: 10px;
+}
+
+/* El cuadradito del tilde. Está siempre y con el mismo tamaño, así que tildar y destildar no
+   mueve el renglón de lugar. */
+.desp-tilde {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: transparent;
+  font-size: 10px;
+}
+.desp-tilde--on {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: #fff;
+}
+
+.desp-limpiar-todo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: none;
+  border-top: 1px solid var(--border-soft);
+  background: none;
+  color: var(--text-gray);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.desp-limpiar-todo:hover {
+  color: var(--berger-red);
+}
+
+/* ===== Formularios de carga ===== */
+
+/*
+ * El alta de cuentas y contactos es la primera pantalla de la app que es un formulario largo y
+ * nada más: catorce campos que alguien llena de una sentada. El resto son pantallas de decisión,
+ * con dos o tres datos sueltos dentro de una tarjeta, y por eso sus campos son compactos.
+ *
+ * Acá eso se nota: campos de 40px pegados uno al otro se leen como una planilla. Un poco más de
+ * alto, más aire entre filas y bordes más suaves hacen que se vea dónde empieza y termina cada
+ * cosa sin tener que leer la etiqueta.
+ *
+ * Va acotado con una clase y no cambiando `.input` para todos: las pantallas de decisión están
+ * bien como están, y agrandarles los campos les quitaría lo que tienen a la vista de una.
+ */
+.form-moderno .datos--form {
+  gap: 16px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.form-moderno .input,
+.form-moderno .desp-btn {
+  height: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border-color: var(--border-soft);
+  background: #fcfcfd;
+  font-size: 13.5px;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.form-moderno .input:hover:not(:focus),
+.form-moderno .desp-btn:hover:not(:disabled):not(.desp-btn--abierto) {
+  border-color: var(--border);
+  background: #fff;
+}
+.form-moderno .input:focus,
+.form-moderno .desp-btn--abierto,
+.form-moderno .desp-btn:focus-visible {
+  background: #fff;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.13);
+}
+.form-moderno .input::placeholder {
+  color: #9aa4b2;
+}
+
+/* El textarea no tiene alto fijo: es el campo donde se escribe de verdad. */
+.form-moderno .textarea {
+  height: auto;
+  min-height: 96px;
+  padding: 12px 14px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+/* La etiqueta, más arriba y más chica: con catorce campos, lo que se lee rápido es el texto que
+   uno escribió, no el rótulo. */
+.form-moderno .campo-lbl {
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  margin-bottom: 5px;
+}
+.form-moderno .campo-ayuda {
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
+/* El panel del desplegable acompaña el redondeo de los campos. */
+.form-moderno .desp-panel {
+  border-radius: 12px;
+  border-color: var(--border-soft);
+  padding: 6px;
+}
+.form-moderno .desp-op {
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+/* ===== Bloques dentro de un formulario ===== */
+
+/* Los contactos de una cuenta son otro asunto dentro del mismo alta: una caja aparte los separa
+   de los datos fiscales sin mandarlos a otra pantalla. */
+.sub-bloque {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--tint-neutral);
+}
+.sub-bloque-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+
+/* El formulario de un contacto que se arma sin salir del alta de la cuenta. Va en blanco sobre el
+   gris del bloque: es un formulario adentro de otro y tiene que notarse. */
+.sub-form {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.sub-form-tit {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+/*
+ * Lo que se agregó y todavía no existe en monday.
+ *
+ * Se crean junto con la cuenta, no al agregarlos: si el alta se abandona a mitad, no quedan
+ * contactos sueltos colgando de una cuenta que nunca existió.
+ */
+.pendientes {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pendiente {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 13px;
+}
+.pendiente > i {
+  color: var(--green-dark);
+}
+.pendiente-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-mid);
+}
+.pendiente-quitar {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: var(--text-gray);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.pendiente-quitar:hover {
+  background: var(--berger-red-soft);
+  color: var(--berger-red);
+}
+
+/* ===== Interruptor ===== */
+
+/*
+ * Un sí/no que ABRE algo, no un campo más.
+ *
+ * El caso es "¿querés dejar agendada la próxima?": la mayoría de las veces la respuesta es no, y
+ * mostrar los cuatro campos de la actividad futura siempre haría parecer que hay que llenarlos.
+ * Con el interruptor apagado la pantalla termina donde terminaba antes.
+ */
+.interruptor {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 11px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.interruptor:hover {
+  border-color: var(--border);
+  background: #fcfcfd;
+}
+.interruptor:focus-visible {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+.interruptor-palanca {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 23px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #c8cdd9;
+  transition: background 0.16s ease;
+}
+.interruptor-palanca--on {
+  background: var(--primary-blue);
+}
+.interruptor-bolita {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.3);
+  transition: transform 0.16s ease;
+}
+.interruptor-palanca--on .interruptor-bolita {
+  transform: translateX(17px);
+}
+.interruptor-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.interruptor-tit {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.interruptor-det {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-gray);
+}
+
+/* La actividad que queda agendada: en azul y con borde punteado, porque todavía no existe. */
+.proyectada {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.proyectada-caja {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1.5px dashed #a9cff6;
+  border-radius: 12px;
+  background: #f4f9ff;
+}
+.proyectada-tit {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0a4f9e;
+}
+.proyectada-tit small {
+  font-weight: 600;
+  color: var(--text-gray);
+}
+
+/* ===== Buscador de listas largas ===== */
+
+.buscable {
+  position: relative;
+}
+.buscable-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: #fcfcfd;
+}
+.buscable-barra:focus-within,
+.buscable-barra--abierta {
+  background: #fff;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.13);
+}
+.buscable-barra > i {
+  color: var(--text-gray);
+  font-size: 13px;
+}
+.buscable-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 42px;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text-dark);
+}
+.buscable-input::placeholder {
+  color: #9aa4b2;
+}
+/* Cuántos hay para buscar: dice si la lista está cargada sin tener que escribir para averiguarlo. */
+.buscable-cuantas {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--text-gray);
+  white-space: nowrap;
+}
+
+.buscable-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--sombra-alta);
+  max-height: 300px;
+  overflow-y: auto;
+}
+.buscable-op {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 11px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.buscable-op--foco {
+  background: #e6f1fd;
+}
+.buscable-op-rot {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+/* El dato que distingue: en un padrón hay tres "Estape" y lo que los separa no es el nombre. */
+.buscable-op-det {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+.buscable-vacio {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-gray);
+}
+
+/* Lo elegido, en lugar de la barra: un buscador vacío encima de lo que ya se eligió se lee como
+   "todavía falta buscar". */
+.buscable-elegida {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--green-bd);
+  border-radius: 10px;
+  background: var(--green-soft);
+}
+.buscable-elegida > i {
+  color: var(--green-dark);
+}
+.buscable-elegida-txt {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.buscable-elegida-rot {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.buscable-elegida-det {
+  font-size: 11.5px;
+  color: var(--text-mid);
+}
+.buscable-quitar {
+  flex: 0 0 auto;
+  border: 1px solid var(--green-bd);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.buscable-quitar:hover:not(:disabled) {
+  background: var(--green-soft);
+}
+
+.buscable-fichas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.buscable-ficha {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px 5px 11px;
+  border-radius: 999px;
+  background: var(--primary-blue);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.buscable-ficha button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+}
+.buscable-ficha button:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* ===== Lo que cada uno tiene pendiente ===== */
+
+.pendientes-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--orange);
+  border-radius: 10px;
+  background: #fff;
+}
+/* Lo atrasado se distingue del borde, no sólo de la etiqueta: en una lista larga el color del
+   costado se ve de un vistazo y la etiqueta hay que leerla. */
+.pend--atrasada {
+  border-left-color: var(--berger-red);
+  background: var(--berger-red-soft);
+}
+.pend-fecha {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 108px;
+  font-variant-numeric: tabular-nums;
+}
+.pend-fecha b {
+  font-size: 13.5px;
+  color: var(--text-dark);
+}
+.pend-fecha small {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+.pend-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pend-tit {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.pend-tipo {
+  font-weight: 600;
+  color: var(--text-mid);
+}
+.pend-det {
+  font-size: 12px;
+  color: var(--text-gray);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .pend {
+    flex-wrap: wrap;
+  }
+  .pend-txt {
+    flex: 1 1 100%;
+    order: 3;
+  }
+}
+
+/* Cuántas pantallas hay adentro de una tarjeta del panel. En rojo y chico: es un dato de apoyo,
+   no el título, pero decide si entrar a elegir o entrar a trabajar. */
+.panel-opcion-cuantas {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--berger-red-soft);
+  border: 1px solid var(--berger-red-bd);
+  color: var(--berger-red-dark);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* ===== Navegación, en el renglón del logo ===== */
+
+/*
+ * Antes había dos renglones: el de la marca y, debajo, uno con «Atrás», «Inicio» y la miga de pan.
+ * La miga decía dónde estaba parado uno pero no servía para ir a otro lado. Acá cada nivel es un
+ * desplegable con todo lo de ese nivel, así que moverse es elegir en vez de retroceder, y dónde
+ * está parado uno se lee igual —en los propios selectores— sin gastar un renglón entero.
+ */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Los dos atajos sueltos: el menú de todas las operaciones y el inicio. Van como íconos grandes y
+   no como botones con texto porque se usan todo el tiempo y el texto no agrega nada. */
+.topnav-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text-mid);
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    border-color 0.14s ease;
+}
+.topnav-icono:hover {
+  background: var(--tint-neutral);
+  color: var(--text-dark);
+  border-color: var(--text-gray);
+}
+.topnav-icono:focus-visible {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+/* La casita, con el color de la marca: es el movimiento más repetido de la app. */
+.topnav-icono--casa {
+  background: var(--berger-red-soft);
+  border-color: var(--berger-red-bd);
+  color: var(--berger-red);
+}
+.topnav-icono--casa:hover {
+  background: var(--berger-red);
+  border-color: var(--berger-red);
+  color: #fff;
+}
+
+.topnav-logo {
+  height: 38px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  margin-right: 4px;
+  user-select: none;
+}
+
+.topnav-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.topnav-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-gray);
+}
+.topnav-sel {
+  position: relative;
+}
+.topnav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 180px;
+  max-width: 300px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.topnav-btn:hover {
+  border-color: var(--text-gray);
+}
+.topnav-btn--abierto,
+.topnav-btn:focus-visible {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.14);
+}
+.topnav-btn-ic {
+  flex: 0 0 auto;
+  color: var(--berger-red);
+  font-size: 13px;
+}
+.topnav-btn-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.topnav-btn-txt--vacio {
+  color: var(--text-gray);
+  font-weight: 500;
+}
+.topnav-btn-flecha {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-gray);
+}
+.topnav-flecha {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--border);
+  margin-top: 16px;
+}
+
+.topnav-panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 45;
+  min-width: 100%;
+  width: max-content;
+  max-width: 340px;
+  list-style: none;
+  margin: 0;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--sombra-alta);
+}
+.topnav-op {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.topnav-op > i {
+  width: 16px;
+  text-align: center;
+  color: var(--berger-red);
+}
+.topnav-op:hover {
+  background: var(--tint-neutral);
+}
+.topnav-op--elegida {
+  background: #e6f1fd;
+  color: #0b4da2;
+  font-weight: 800;
+}
+.topnav-op--elegida > i {
+  color: var(--primary-blue);
+}
+/* «Inicio» no es un área más: va separada del resto. */
+.topnav-op-aparte {
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+/*
+ * En el celular la barra se parte en dos líneas en vez de achicar los selectores hasta que no se
+ * lea ninguno: los atajos y el logo arriba, los desplegables abajo y a todo el ancho.
+ */
+@media (max-width: 760px) {
+  .topnav {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topnav-logo {
+    height: 30px;
+    margin-right: auto;
+  }
+  .topnav-item {
+    flex: 1 1 160px;
+  }
+  .topnav-btn {
+    min-width: 0;
+    max-width: none;
+  }
+  /* Las flechas entre selectores sobran cuando están uno debajo del otro. */
+  .topnav-flecha {
+    display: none;
+  }
+}
+
+/* Quién usa cada pantalla, dentro del desplegable. Va chiquito y en mayúsculas: es un rótulo que
+   ordena, no una opción que se pueda elegir. */
+.topnav-grupo {
+  display: block;
+  padding: 9px 11px 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+/* Entre un grupo y el anterior, una línea: sin ella los dos bloques se leen como una sola lista. */
+.topnav-panel li + li > .topnav-grupo {
+  margin-top: 4px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 9px;
+}
+
+/* ===== Un CUIT que ya está cargado ===== */
+
+/*
+ * No se prohíbe crear la segunda: dos razones sociales del mismo titular es un caso real, y una
+ * app que lo impide termina con la cuenta cargada a mano en el tablero, sin ningún control. Lo
+ * que no puede pasar es que alguien la cree sin enterarse, así que se muestra cuál es la que ya
+ * existe y hace falta decir que sí a propósito.
+ */
+.duplicado {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1.5px solid #f2d795;
+  border-radius: 12px;
+  background: #fff8e6;
+}
+.duplicado-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #7a4e00;
+}
+.duplicado-aviso > i {
+  margin-top: 2px;
+  color: var(--orange);
+}
+.duplicado-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: #fff;
+}
+.duplicado-ficha-tit {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.duplicado-ficha-det {
+  font-size: 12.5px;
+  color: var(--text-mid);
+}
+.duplicado-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+/* El interruptor del "sí, crearla igual" va al lado del botón de copiar, no ocupando el ancho. */
+.interruptor--chico {
+  width: auto;
+  padding: 8px 12px;
+}
+.interruptor--chico .interruptor-tit {
+  font-size: 13px;
+}
+
+/*
+ * Fichas grandes: para listas de dos o tres, donde lo que hace falta para estar seguro de cuál es
+ * no entra en una pastilla. La cuenta de un contacto es el caso: sin el CUIT, "Transporte EVANS"
+ * y "Transporte EVANS S.R.L." se leen igual.
+ */
+.buscable-fichas--grandes {
+  flex-direction: column;
+  gap: 8px;
+}
+.buscable-ficha--grande {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px 11px 14px;
+  border-radius: 10px;
+  background: #e6f1fd;
+  border: 1.5px solid #a9cff6;
+  color: var(--text-dark);
+  font-weight: 600;
+}
+.buscable-ficha-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.buscable-ficha-rot {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0a4f9e;
+}
+.buscable-ficha-det {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-mid);
+}
+.buscable-ficha--grande button {
+  width: 26px;
+  height: 26px;
+  background: #fff;
+  border: 1px solid #a9cff6;
+  color: #0a4f9e;
+  font-size: 12px;
+}
+.buscable-ficha--grande button:hover {
+  background: var(--berger-red-soft);
+  border-color: var(--berger-red-bd);
+  color: var(--berger-red);
+}
+
+/* ===== VENTA · pedidos del concesionario ===== */
+
+/* Los pasos: cuánto falta para terminar. */
+.pasos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 16px 0 12px;
+  padding: 0;
+}
+.paso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-gray);
+}
+.paso-num {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: var(--text-mid);
+  font-size: 11px;
+  font-weight: 800;
+}
+.paso--actual {
+  border-color: var(--primary-blue);
+  color: #0a4f9e;
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.12);
+}
+.paso--actual .paso-num {
+  background: var(--primary-blue);
+  color: #fff;
+}
+.paso--hecho {
+  color: var(--green-dark);
+  border-color: var(--green-bd);
+}
+.paso--hecho .paso-num {
+  background: var(--green-dark);
+  color: #fff;
+}
+
+/* El catálogo: tarjetas y no una tabla, porque de un tractor se mira la ficha entera —potencia,
+   rodado, línea— y en una fila de tabla eso no entra. */
+.catalogo {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.producto {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fff;
+}
+.producto--elegido {
+  border-color: var(--primary-blue);
+  background: var(--tint-input);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.1);
+}
+.producto-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.producto-nom {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+.producto-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.producto-rodado {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+.producto-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+.producto-precio {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+}
+.producto-precio small {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-gray);
+}
+
+.contador {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--primary-blue);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.contador button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: #fff;
+  color: var(--primary-blue);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.contador button:hover {
+  background: var(--primary-blue);
+  color: #fff;
+}
+.contador b {
+  min-width: 30px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Los descuentos de contado, antes de ver un solo número: el total no es la suma y conviene que
+   eso se vea. */
+.descuentos {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1.5px dashed var(--green-bd);
+  border-radius: 12px;
+  background: var(--green-soft);
+}
+.descuentos-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--green-dark);
+}
+.descuentos-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 8px;
+}
+.descuento {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 86px;
+  padding: 9px 14px;
+  border: 1px solid var(--green-bd);
+  border-radius: 10px;
+  background: #fff;
+}
+.descuento b {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--green-dark);
+}
+.descuento small {
+  font-size: 11px;
+  color: var(--text-gray);
+}
+.descuento--total {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+}
+.descuento--total b,
+.descuento--total small {
+  color: #fff;
+}
+
+.resumen-pedido {
+  padding: 4px 0;
+}
+.totales {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--tint-neutral);
+}
+.totales-mini {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 13px;
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La galería del producto. */
+.galeria {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  width: min(760px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(16, 24, 40, 0.3);
+  overflow: hidden;
+}
+.galeria-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  font-weight: 800;
+}
+.galeria-head button {
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: var(--text-gray);
+  cursor: pointer;
+}
+.galeria-fotos {
+  padding: 16px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.galeria-fotos img {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+}
+
+/* ===== VENTA · la ficha de una cuenta y su línea de crédito ===== */
+
+.fichas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--primary-blue);
+  border-radius: 12px;
+  background: #fff;
+  min-width: 0;
+}
+/* La caja donde todavía no se eligió a nadie: no se pinta de azul porque no hay nada que mostrar. */
+.ficha--elegir {
+  border-left-color: var(--border-soft);
+  background: var(--tint-neutral);
+  gap: 12px;
+}
+.ficha--elegir .ficha {
+  border-left-color: var(--green-dark);
+}
+
+.ficha-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ficha-rotulo {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.ficha-nombre {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text-dark);
+  /* Las razones sociales son largas: cortan en varias líneas antes que desbordar la caja. */
+  overflow-wrap: anywhere;
+}
+.ficha-donde {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-mid);
+  overflow-wrap: anywhere;
+}
+.ficha-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* El crédito. El número solo —"usó 2.800.000 de 3.250.000"— obliga a hacer una división mental
+   antes de decidir, y la decisión es justamente si entra o no entra. */
+.credito {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.credito-cifras {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.credito-dato {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.credito-dato small {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.credito-dato b {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.credito-dato--verde b {
+  color: var(--green-dark);
+}
+.credito-dato--amarillo b {
+  color: #9a7b06;
+}
+.credito-dato--naranja b {
+  color: #b5600a;
+}
+.credito-dato--rojo b {
+  color: var(--berger-red);
+}
+
+.credito-barra {
+  height: 8px;
+  border-radius: 999px;
+  background: #e8edf3;
+  overflow: hidden;
+}
+.credito-barra-usa {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+.credito-barra-usa--verde {
+  background: var(--green-dark);
+}
+.credito-barra-usa--amarillo {
+  background: var(--orange);
+}
+.credito-barra-usa--naranja {
+  background: #e8740c;
+}
+.credito-barra-usa--rojo {
+  background: var(--berger-red);
+}
+.credito-pie {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+
+/* ===== VENTA · la tabla del pedido ===== */
+
+.pedido-tabla {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+/* La tabla se desplaza sola cuando no entra: antes las columnas se encimaban unas con otras y los
+   números quedaban ilegibles, que es justo lo único que acá hay que poder leer. */
+.pedido-tabla-caja {
+  overflow-x: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fff;
+}
+.pedido-tabla table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+.pedido-tabla th,
+.pedido-tabla td {
+  padding: 11px 14px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+.pedido-tabla thead th {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+  background: var(--tint-neutral);
+}
+.pedido-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+.pedido-tabla .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pedido-tabla .apagado {
+  color: var(--text-gray);
+}
+.pedido-tabla .fuerte {
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.pedido-tabla .verde {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+.pedido-tractor {
+  white-space: normal;
+  min-width: 190px;
+}
+.pedido-tractor b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.pedido-tractor small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-gray);
+}
+
+.pedido-totales {
+  margin-left: auto;
+  width: min(380px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--tint-neutral);
+}
+.pedido-linea {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
+.pedido-linea b {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.pedido-linea--resta b {
+  color: var(--green-dark);
+}
+.pedido-linea--total {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.pedido-linea--suave {
+  font-size: 12px;
+  color: var(--text-gray);
+}
+.pedido-linea--suave b {
+  color: var(--text-mid);
+  font-weight: 700;
+}
+
+/* Los pares del resumen: una grilla, para que el rótulo y el dato no se pisen. */
+.datos-pares {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px 18px;
+  margin: 0 0 4px;
+}
+.datos-pares div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.datos-pares dt {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.datos-pares dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  overflow-wrap: anywhere;
+}
+
+/* La barra de abajo: dónde estoy, cuánto va y qué sigue, siempre a la vista. */
+.barra-pasos {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 -4px 14px rgba(16, 24, 40, 0.06);
+}
+.barra-pasos-total {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
+.barra-pasos-total b {
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+/* El aviso viene pegado a lo que comenta; sin esto queda encimado contra el bloque de arriba,
+   porque `.aviso` sólo separa por abajo. */
+.decision + .aviso,
+.pedido-tabla + .aviso,
+.datos + .aviso {
+  margin-top: 16px;
+}
+
+/* ===== VENTA · el catálogo en lista, con filtros ===== */
+
+.catalogo-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.catalogo-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.catalogo-barra .input {
+  flex: 1 1 auto;
+}
+.btn--activo {
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+  background: var(--tint-input);
+}
+.btn-contador {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--primary-blue);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.catalogo-cuenta {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-gray);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La lista. En tarjetas, veinte modelos eran cuatro pantallazos y comparar dos precios obligaba a
+   acordarse del primero. */
+.tractores {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.tractor {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.tractor:last-child {
+  border-bottom: none;
+}
+.tractor--elegido {
+  background: var(--tint-input);
+  box-shadow: inset 3px 0 0 var(--primary-blue);
+}
+.tractor-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tractor-nom {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.tractor-nom small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-gray);
+}
+.tractor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tractor-precio {
+  flex: 0 0 auto;
+  text-align: right;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+}
+.tractor-precio small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-gray);
+}
+.tractor-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* En pantalla angosta la fila se apila: antes de encimarse, baja. */
+@media (max-width: 720px) {
+  .tractor {
+    flex-wrap: wrap;
+  }
+  .tractor-precio {
+    text-align: left;
+  }
+  .tractor-acciones {
+    margin-left: auto;
+  }
+}
+
+/* ===== VENTA · el alta rápida del cliente final ===== */
+
+.alta-rapida {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--primary-blue);
+  border-radius: 12px;
+  background: #fff;
+}
+.alta-rapida-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #0a4f9e;
+}
+.alta-rapida .aviso {
+  margin-bottom: 0;
+}
+.alta-rapida .aviso button {
+  display: block;
+  margin-top: 8px;
+}
+.alta-rapida-pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Los filtros del catálogo: un desplegable por característica.
+   Todas las etiquetas a la vez eran cuatro renglones de chips —veinte potencias distintas— que
+   ocupaban más que el catálogo que venían a filtrar. */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.filtro {
+  position: relative;
+}
+.filtro-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-mid);
+  cursor: pointer;
+}
+.filtro-btn:hover {
+  border-color: var(--primary-blue);
+}
+.filtro-btn i {
+  font-size: 10px;
+  color: var(--text-gray);
+}
+.filtro-btn--puesto {
+  border-color: var(--primary-blue);
+  background: var(--tint-input);
+  color: #0a4f9e;
+}
+
+.filtro-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 210px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.14);
+}
+.filtro-opciones {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.filtro-op {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.filtro-op:hover {
+  background: var(--tint-input);
+}
+.filtro-op input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary-blue);
+  cursor: pointer;
+}
+.filtro-op-txt {
+  flex: 1 1 auto;
+}
+.filtro-op-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-gray);
+  font-variant-numeric: tabular-nums;
+}
+/* Lo que llevaría a cero se apaga en vez de esconderse: esconderlo haría que la lista cambiara de
+   tamaño a cada tilde. */
+.filtro-op--vacia {
+  opacity: 0.45;
+}
+
+.filtros-puestos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+.filtro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border: 1px solid var(--primary-blue);
+  border-radius: 999px;
+  background: var(--primary-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.filtro-chip small {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.filtro-chip i {
+  font-size: 10px;
+  opacity: 0.85;
+}
+.filtro-chip:hover i {
+  opacity: 1;
+}
+
+/* Rechazar es destructivo del lado del otro: alguien tiene que volver a cargar el pedido. No va
+   con el mismo botón que aprobar. */
+.btn--peligro {
+  border: 1px solid var(--berger-red);
+  background: var(--berger-red);
+  color: #fff;
+}
+.btn--peligro:hover:not(:disabled) {
+  filter: brightness(0.93);
+}
+
+@media (max-width: 720px) {
+  .pedido-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .unidad,
+  .unidad--asignar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .unidad-chips {
+    justify-content: flex-start;
+  }
+}

@@ -1,0 +1,1009 @@
+/* Piezas propias de las operaciones de despacho: filtros, listas seleccionables, ficha del pago,
+   totales y recuadros de comprobante. */
+
+/* ===== Barra de filtros ===== */
+.filtros {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.filtros-meses {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.filtros-nota {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  /* Alineada con la caja del selector y no con su rótulo. */
+  margin-top: 22px;
+  font-size: 12px;
+  color: var(--text-gray);
+}
+/* En VISTA no hay filtro al lado: la nota queda sola y sin el aire del rótulo. */
+.filtros-nota--sola {
+  margin-top: 0;
+}
+
+/* ===== Selector de meses ===== */
+.meses {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+}
+.meses-disparador {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  text-align: left;
+  cursor: pointer;
+}
+.meses-disparador > i:first-child {
+  color: var(--primary-blue);
+}
+.meses-disparador:hover,
+.meses-disparador--abierto {
+  border-color: var(--primary-blue);
+}
+.meses-disparador--abierto {
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.14);
+}
+.meses-disparador-txt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meses-caret {
+  font-size: 11px;
+  color: var(--text-gray);
+  transition: transform 0.16s ease;
+}
+.meses-disparador--abierto .meses-caret {
+  transform: rotate(180deg);
+}
+/* El panel flota sobre la lista en vez de empujarla: abrir el filtro no tiene que mover de lugar
+   los tractores que el usuario estaba mirando. */
+.meses-panel {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 340px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--sombra-alta);
+}
+.meses-anio {
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  padding: 8px 10px 4px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-gray);
+}
+.meses-opcion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font-size: 13px;
+  color: var(--text-dark);
+  text-align: left;
+  cursor: pointer;
+}
+.meses-opcion:hover {
+  background: #f5f8fd;
+}
+.meses-opcion--sel {
+  background: #f2f8ff;
+}
+.meses-opcion--sel .trow-check {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+.meses-opcion-txt {
+  flex: 1;
+  min-width: 0;
+}
+/* Cantidad de tractores del mes. En cero va en un violeta suave —no gris, que se leería como
+   desactivado— para que los meses con tractores resalten solos en teal. */
+.meses-cuenta {
+  min-width: 24px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  background: #f7f3fd;
+  color: #9a7cc4;
+}
+.meses-cuenta--hay {
+  background: #e6f7f6;
+  color: #0f766e;
+}
+.meses-etiquetas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.meses-etiqueta {
+  padding-right: 3px;
+}
+.meses-quitar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.meses-quitar:hover {
+  background: rgba(0, 96, 194, 0.14);
+}
+
+/* ===== Listas seleccionables (tractores y pagos) ===== */
+.lista {
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: var(--radio);
+  background: #fff;
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+.lista-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: var(--tint-neutral);
+  border-bottom: 1px solid var(--tint-neutral-bd);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.lista-head-cuenta {
+  margin-left: 8px;
+}
+.lista-head-acciones {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lista-body {
+  /* La lista puede traer decenas de filas: scrollea sola en vez de empujar el total y el botón
+     de la operación fuera de la vista. */
+  max-height: 420px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fila seleccionable. TODA la fila es el control: apuntar a un checkbox de 16px para marcar
+   veinte tractores es innecesariamente preciso, y en un celular directamente no se acierta. */
+.trow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid #f0f1f5;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.trow:last-child {
+  border-bottom: none;
+}
+.trow:hover {
+  background: #fafbfd;
+}
+.trow--sel {
+  background: #f2f8ff;
+}
+.trow--sel:hover {
+  background: #eaf3ff;
+}
+/* Cuadrado = varios a la vez (tractores). Círculo = uno solo (pagos). La forma del control es lo
+   que anticipa si marcar el segundo va a desmarcar el primero. */
+.trow-check {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+}
+.trow--sel .trow-check {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+.trow-radio {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: #fff;
+}
+.trow-radio--sel {
+  border-color: var(--primary-blue);
+  border-width: 6px;
+}
+.trow-nom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
+}
+.trow-nom-txt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trow-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.trow-fecha {
+  font-size: 12px;
+  color: var(--text-gray);
+  font-variant-numeric: tabular-nums;
+}
+.trow-neto {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  min-width: 96px;
+  text-align: right;
+}
+
+/* ===== Lista desplegable de seleccionados ===== */
+.sel-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sel-item {
+  border: 1px solid var(--tint-data-bd);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+.sel-item--abierto {
+  border-color: var(--tint-input-bd);
+  box-shadow: var(--sombra);
+}
+.sel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  min-height: var(--toque);
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.sel-head:hover {
+  background: #fafbfd;
+}
+.sel-caret {
+  flex: 0 0 auto;
+  width: 16px;
+  color: var(--text-gray);
+  font-size: 11px;
+  transition: transform 0.16s ease;
+}
+.sel-item--abierto .sel-caret {
+  transform: rotate(90deg);
+}
+.sel-nom {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.sel-head-neto {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--green-dark);
+  flex: 0 0 auto;
+}
+.sel-cuerpo {
+  border-top: 1px dashed var(--border-soft);
+  padding: 12px;
+  background: var(--tint-data);
+}
+
+/* Grilla de datos. `auto-fit` es lo que hace que las celdas se acomoden solas al ancho —del
+   panel de monday o de la pantalla del celular— sin escribir un breakpoint por tamaño. */
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 10px;
+}
+.dato {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid var(--tint-data-bd);
+  border-radius: 8px;
+  background: #fff;
+  min-width: 0;
+}
+.dato-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.dato-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* El valor neto es el número que se suma al total: se destaca del resto de los importes. */
+.dato--neto {
+  background: var(--green-soft);
+  border-color: var(--green-bd);
+}
+.dato--neto .dato-val {
+  color: var(--green-dark);
+}
+.dato--forma {
+  background: #f7f2fd;
+  border-color: #e4d5f5;
+}
+.dato--forma .dato-val {
+  color: #6b3fa0;
+  font-size: 13px;
+}
+
+/* ===== Adjuntos ya cargados en un pago ===== */
+.adjuntos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.adjunto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-mid);
+  text-decoration: none;
+}
+.adjunto:hover {
+  border-color: var(--berger-red-bd);
+  color: var(--berger-red-dark);
+}
+.adjunto i:first-child {
+  color: var(--berger-red);
+}
+
+/* ===== Tractores dentro de un pago ya registrado ===== */
+/* No es desplegable como la lista de la operación 1: acá el detalle YA está decidido y lo que
+   importa es revisarlo de un vistazo antes de aprobar o confirmar. */
+.tractor-fila {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--tint-data-bd);
+  border-radius: 8px;
+  background: #fff;
+}
+.tractor-fila-nom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.tractor-fila-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tractor-fila-datos {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tractor-fila-neto {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--green-dark);
+  flex: 0 0 auto;
+}
+
+/* ===== Total ===== */
+.total {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border: 1px solid var(--green-bd);
+  border-radius: var(--radio);
+  background: var(--green-soft);
+}
+.total-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 200, 117, 0.16);
+  color: var(--green-dark);
+  font-size: 15px;
+  flex: 0 0 auto;
+}
+/* El importe va contra el borde derecho: es donde terminan las columnas de importes de las listas,
+   así que el total queda debajo de los números que suma. */
+.total-txt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+  text-align: right;
+}
+.total-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+.total-val {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.total-detalle {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--green-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Aviso de importes incompletos: si un espejo no trajo el valor neto, el total que se ve NO es
+   el total real y decirlo importa más que mostrar un número redondo. */
+.total-parcial {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a5a00;
+}
+
+/* ===== Recuadro del comprobante ===== */
+.zona {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 18px;
+  border: 2px dashed var(--tint-input-bd);
+  border-radius: var(--radio);
+  background: var(--tint-input);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+.zona:hover,
+.zona--sobre {
+  border-color: var(--primary-blue);
+  background: #e6f0ff;
+}
+.zona-ic {
+  font-size: 26px;
+  color: var(--primary-blue);
+}
+.zona-tit {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.35;
+}
+.zona-det {
+  font-size: 12px;
+  color: var(--text-gray);
+}
+
+/* Archivo ya elegido: deja de ser una invitación y pasa a ser un dato con su acción de quitar. */
+.archivo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--green-bd);
+  border-radius: var(--radio);
+  background: var(--green-soft);
+}
+.archivo-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--green-bd);
+  color: var(--berger-red);
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+.archivo-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.archivo-nom {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.archivo-peso {
+  font-size: 11px;
+  color: var(--green-dark);
+  font-weight: 600;
+}
+.archivo-quitar {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* ===== Resumen compacto del paso 2 de la operación 1 ===== */
+.resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.resumen-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid var(--tint-data-bd);
+  font-size: 12px;
+}
+.resumen-nom {
+  font-weight: 600;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.resumen-val {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dark);
+  flex: 0 0 auto;
+}
+
+/* ===== Pantalla final ===== */
+.final {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 16px 24px;
+  text-align: center;
+}
+.final-ic {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green-soft);
+  border: 1px solid var(--green-bd);
+  color: var(--green-dark);
+  font-size: 26px;
+}
+.final-tit {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+.final-det {
+  font-size: 14px;
+  color: var(--text-gray);
+  max-width: 520px;
+  line-height: 1.5;
+}
+.final-datos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+}
+.final-acciones {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ===== Celular ===== */
+@media (max-width: 640px) {
+  .filtros {
+    gap: 10px;
+  }
+  /* El filtro de meses ocupa el ancho completo: es lo que decide la pantalla entera. */
+  .meses {
+    max-width: none;
+  }
+  .meses-disparador {
+    min-height: var(--toque);
+    font-size: 14px;
+  }
+  .meses-panel {
+    top: 50px;
+    max-height: 52dvh;
+  }
+  .meses-opcion {
+    min-height: var(--toque);
+    font-size: 14px;
+  }
+  /* La X de cada etiqueta es un blanco de 18px: en el dedo se agranda sin cambiar el dibujo. */
+  .meses-quitar {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+  .filtros-nota {
+    margin: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .lista-body {
+    /* Con el pie de acción fijo y la barra de operaciones arriba, un alto fijo grande deja la
+       lista scrolleando dentro de otro scroll. Se limita contra la altura de la pantalla. */
+    max-height: 46dvh;
+  }
+
+  /* La fila pasa a dos renglones: identificación arriba, números abajo alineados a los bordes.
+     En una sola línea, el nombre del tractor y el importe se pelean por 320px y termina
+     ganando el recorte con puntos suspensivos. */
+  .trow {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 11px 12px;
+    min-height: var(--toque);
+  }
+  .trow-nom {
+    flex: 1 1 auto;
+  }
+  .trow-meta {
+    width: 100%;
+    margin-left: 30px;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .trow-neto {
+    min-width: 0;
+  }
+
+  .datos {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
+  }
+  .dato {
+    padding: 8px 10px;
+  }
+  .dato-val {
+    font-size: 13px;
+  }
+
+  .total {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  .total-val {
+    font-size: 22px;
+  }
+  /* El detalle cede ancho antes que el importe: el total nunca se parte ni baja de renglón. */
+  .total-detalle {
+    flex-basis: 90px;
+  }
+
+  .zona {
+    padding: 22px 14px;
+  }
+  .zona-tit {
+    font-size: 13px;
+  }
+  .archivo-quitar {
+    margin-left: 0;
+  }
+
+  .resumen {
+    max-height: 200px;
+  }
+
+  .final {
+    padding: 26px 8px 20px;
+  }
+  .final-tit {
+    font-size: 19px;
+  }
+  .final-det {
+    font-size: 13px;
+  }
+  /* Los botones de cierre ocupan el ancho: son la única acción de la pantalla. */
+  .final-acciones {
+    width: 100%;
+    flex-direction: column-reverse;
+  }
+  .final-acciones .btn {
+    width: 100%;
+  }
+}
+
+/* ===== Resumen de contenedores =====
+   Se actualiza con cada tractor que se marca. Cada caja es un contenedor —o un par, cuando la
+   combinación ocupa dos— con lo que lleva adentro. El verde dice "completo" y el ámbar "sobra
+   lugar": ese es el dato que hay que ver de lejos mientras se elige. */
+.cont-libres {
+  margin-left: 6px;
+}
+.cont-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cont-caja {
+  border: 1px solid var(--tint-data-bd);
+  border-left: 4px solid var(--orange);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+}
+.cont-caja--completo {
+  border-left-color: var(--green);
+}
+.cont-cab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.cont-rotulo {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.cont-carga {
+  margin-left: auto;
+}
+.cont-tractor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 0 5px 4px;
+  font-size: 12.5px;
+  color: var(--text-mid);
+}
+.cont-tractor > i:first-child {
+  color: #b3b9c6;
+  font-size: 11px;
+}
+.cont-tractor-nom {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+/* Los sugeridos no están en el pedido: se ven distintos para no confundirlos con los elegidos. */
+.cont-tractor--sugerido {
+  opacity: 0.85;
+}
+.cont-tractor--sugerido .cont-tractor-nom {
+  font-weight: 600;
+  color: var(--text-mid);
+}
+.cont-tractor--sugerido > i:first-child {
+  color: var(--green-dark);
+}
+.cont-sugerencia {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-soft);
+}
+.cont-sugerencia-tit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #8a5a00;
+}
+.cont-sin {
+  margin: 12px 0 0;
+}
+.cont-sin-lista {
+  margin: 6px 0 0 18px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .cont-carga {
+    margin-left: 0;
+  }
+  .cont-tractor {
+    font-size: 12px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Paso del despachante: a quién se le manda, y qué se le manda
+ * ------------------------------------------------------------------ */
+
+.persona {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.persona-foto {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-soft);
+  background: var(--tint-neutral);
+}
+.persona-foto--sin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-gray);
+  font-size: 13px;
+}
+.persona-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.persona-nom {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.persona-mail {
+  font-size: 11.5px;
+  color: var(--text-gray);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* La vista previa es el texto tal cual sale: monoespaciado y respetando los saltos de línea, para
+   que lo que se lee acá sea carácter por carácter lo que recibe el despachante. */
+.previo {
+  margin: 0;
+  padding: 14px;
+  background: var(--tint-data);
+  border-top: 1px solid var(--tint-data-bd);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-dark);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .previo {
+    font-size: 11.5px;
+    padding: 12px;
+  }
+  .persona-mail {
+    font-size: 11px;
+  }
+}

@@ -1,0 +1,1902 @@
+/* ==================================================================== *
+ * Módulo de Aduana: actualizar OP y dashboard de despachos
+ *
+ * Mismo lenguaje visual que el resto de la app —recuadros claros sobre blanco, etiquetas de
+ * color— con dos piezas propias: la fila de OP, que tiene que mostrar muchas etiquetas sin
+ * romperse en un celular, y las tarjetas del dashboard.
+ * ==================================================================== */
+
+/* ===== Filtros de la selección de OP ===== */
+/* Una fila de filtros ocupa SU renglón. Sin esto compartía línea con los chips de estado: el
+   contenedor de arriba es flex, la fila se encogía a su contenido y el ancho que pide el buscador
+   nunca llegaba a aplicarse. Era la razón real de que se viera corto. */
+.filtros-fila {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1 1 100%;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+/* El buscador se dimensiona por lo que se escribe adentro, no por lo que sobra al lado: con 260px
+   el ejemplo se cortaba a la mitad y dejaba de servir de ejemplo. Cuando ni así entra, el ejemplo
+   sale del campo y va debajo, como ayuda. */
+.campo--busqueda {
+  flex: 1 1 420px;
+  max-width: 900px;
+}
+@media (max-width: 480px) {
+  .campo--busqueda {
+    flex-basis: 100%;
+  }
+}
+
+/* El ejemplo de búsqueda, cuando no entra adentro del campo. */
+.campo-ayuda--ejemplo {
+  color: var(--text-gray);
+  font-weight: 500;
+}
+.filtros-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* Una etiqueta que además se puede apretar. Hereda el color del estado que representa: el filtro
+   y la fila filtrada se ven del mismo color, que es lo que hace obvio qué se está mirando. */
+.chip--boton {
+  cursor: pointer;
+  border-style: solid;
+  gap: 6px;
+}
+.chip--boton:hover {
+  filter: brightness(0.97);
+}
+.chip--activo {
+  box-shadow: 0 0 0 2px rgba(16, 24, 40, 0.16);
+  font-weight: 800;
+}
+
+/* ===== Fila de una OP ===== */
+.opfila {
+  border-bottom: 1px solid #f0f1f5;
+  background: #fff;
+}
+.opfila:last-child {
+  border-bottom: none;
+}
+.opfila--sel {
+  background: #f2f8ff;
+}
+.opfila-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+}
+.opfila-marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.trow-check--sel {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+.opfila-nom {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opfila-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.opfila-ver {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+/* El pago del VEP. El estado y el comprobante van juntos porque los dos dependen de lo mismo:
+   que el despachante haya emitido el VEP. Sueltos, se podía marcar el pago sin adjuntar nada. */
+.vep {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: 12px;
+  background: var(--tint-neutral);
+}
+.vep-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.vep-tit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.vep-tit > i {
+  color: var(--green-dark);
+}
+.vep-det {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-mid);
+}
+
+/* Campo de dirección con sugerencias. La columna de monday exige coordenadas, así que la
+   dirección se ELIGE de una lista real en vez de escribirse suelta. */
+.ubicacion {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+.ubicacion-campo {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ubicacion-campo .input {
+  width: 100%;
+  padding-right: 34px;
+}
+.ubicacion-estado {
+  position: absolute;
+  right: 11px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.ubicacion-ic--ok {
+  color: var(--green-dark);
+  font-size: 13px;
+}
+.ubicacion-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--sombra-alta);
+}
+.ubicacion-op {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-dark);
+}
+.ubicacion-op:hover,
+.ubicacion-op:focus-visible {
+  background: var(--tint-input);
+  outline: none;
+}
+.ubicacion-op > i {
+  margin-top: 2px;
+  color: var(--primary-blue);
+  font-size: 12px;
+}
+.ubicacion-op-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ubicacion-op-tit {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.ubicacion-op-det {
+  font-size: 11.5px;
+  color: var(--text-gray);
+  line-height: 1.35;
+}
+
+/* Ayudas del campo: el estado de la dirección se dice con palabras, no sólo con un ícono. */
+.campo-ayuda--aviso {
+  color: #8a5a00;
+}
+.campo-ayuda--ok {
+  color: var(--green-dark);
+}
+
+/* Spinner chico, para meter dentro de un input. */
+.spin--chico {
+  width: 13px;
+  height: 13px;
+  border-width: 2px;
+}
+
+/* Los tractores de una OP, debajo de su fila. Quien define pago y entrega tiene que ver QUÉ
+   está por pagar sin abrir la OP: modelo, plata, factura y chasis de cada unidad. */
+.tractores-op {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0 14px 12px 14px;
+}
+.tractores-op-resumen {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.tractores-op-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* Una etiqueta por tractor: arriba cómo se llama, abajo sus datos duros. */
+.tractag {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 10px;
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: 10px;
+  background: var(--tint-neutral);
+  max-width: 100%;
+}
+.tractag-nom {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+.tractag-modelo {
+  font-weight: 600;
+  color: var(--text-mid);
+}
+.tractag-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tractag-dato {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+.tractag-dato--plata {
+  background: var(--green-soft);
+  border-color: var(--green-bd);
+  color: var(--green-dark);
+  font-weight: 700;
+}
+/* El chasis, en monoespaciado: dos unidades del mismo modelo se distinguen sólo por acá, y las
+   matrículas se comparan carácter a carácter. */
+.tractag-dato--chasis {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: var(--text-dark);
+  background: #fff;
+  border-color: var(--border);
+}
+.tractag-dato--si {
+  background: var(--tint-input);
+  border-color: var(--tint-input-bd);
+  color: #0a4f9e;
+}
+.tractag-dato--no {
+  color: var(--text-gray);
+}
+
+@media (max-width: 560px) {
+  .tractag {
+    width: 100%;
+  }
+}
+
+.opfila-cuerpo {
+  padding: 0 14px 12px;
+}
+
+/* ===== Editor de una OP ===== */
+.op-editores {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.op-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.op-editor-nom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.op-editor-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+/* Una OP todavía sin cambios: el borde ámbar la distingue sin necesidad de contar tarjetas,
+   porque es la que impide continuar. */
+.op-editor--pendiente {
+  border-color: #fdd2b5;
+  box-shadow: 0 0 0 1px #fdd2b5 inset;
+}
+.op-editor-cuerpo {
+  padding: 12px 14px 14px;
+}
+.datos--form {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.textarea {
+  height: auto;
+  min-height: 78px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.campo-ayuda--cambio {
+  color: var(--primary-blue);
+  font-weight: 600;
+}
+.op-editor-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.aviso-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* ===== Resumen de cambios ===== */
+.cambios {
+  list-style: none;
+  margin: 0;
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cambio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-mid);
+}
+.cambio i {
+  color: var(--text-gray);
+  font-size: 11px;
+}
+.cambio-campo {
+  font-weight: 700;
+  color: var(--text-dark);
+  min-width: 150px;
+}
+/* Lo que se va: tachado y en tinta apagada. Lo que queda: verde, que en toda la app significa
+   "esto es lo que vale ahora". */
+.cambio-antes {
+  text-decoration: line-through;
+  color: var(--text-gray);
+}
+.cambio-despues {
+  font-weight: 700;
+  color: var(--green-dark);
+}
+
+/* ===== Dashboard ===== */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
+  gap: 10px;
+}
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: var(--radio);
+  min-width: 0;
+}
+.tarjeta-ic {
+  font-size: 13px;
+  opacity: 0.85;
+}
+.tarjeta-val {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.tarjeta-rot {
+  font-size: 12px;
+  font-weight: 700;
+}
+.tarjeta-det {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* Los mismos colores que las etiquetas, para que un estado se vea igual en la tarjeta y en la
+   fila. Se derivan del nombre del tono, así que agregar un tono nuevo es agregarlo en los dos
+   lados o no agregarlo en ninguno. */
+.tarjeta--verde {
+  background: #eef9f2;
+  border-color: #bfe6cf;
+  color: var(--green-dark);
+}
+.tarjeta--azul {
+  background: #eef5ff;
+  border-color: #bcd6f5;
+  color: #1256a8;
+}
+.tarjeta--ambar {
+  background: #fff8e6;
+  border-color: #ffe08a;
+  color: #8a5a00;
+}
+.tarjeta--rojo {
+  background: #fdecec;
+  border-color: #f6c6c8;
+  color: var(--berger-red-dark);
+}
+.tarjeta--violeta {
+  background: #f6f0fd;
+  border-color: #ddc8f5;
+  color: #6b21a8;
+}
+.tarjeta--teal {
+  background: #e8f8f7;
+  border-color: #b3e5e1;
+  color: #0f766e;
+}
+.tarjeta--indigo {
+  background: #eef0fe;
+  border-color: #c7cdfa;
+  color: #3730a3;
+}
+.tarjeta--magenta {
+  background: #fdeef6;
+  border-color: #f5c2dd;
+  color: #9d174d;
+}
+.tarjeta--lima {
+  background: #f3fbe6;
+  border-color: #d3ecae;
+  color: #4d7c0f;
+}
+.tarjeta--naranja {
+  background: #fff3eb;
+  border-color: #fdd2b5;
+  color: #c2410c;
+}
+
+.paises {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 14px;
+}
+.tablas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+/* En el panel angosto de monday y en el celular, las listas van una debajo de la otra y la fila
+   de la OP deja de pelear por el ancho: el botón de ver datos pasa abajo. */
+@container (max-width: 560px) {
+  .tablas {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .tablas {
+    grid-template-columns: 1fr;
+  }
+  .opfila-ver {
+    margin-left: 0;
+  }
+  .cambio-campo {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .tarjeta-val {
+    font-size: 22px;
+  }
+}
+
+/* ==================================================================== *
+ * Planificación de drafts
+ * ==================================================================== */
+
+/* Los dos importes del encabezado de un draft: el transporte que corresponde y el total. Van en
+   una segunda línea propia porque en el panel angosto de monday no entran al lado de las
+   etiquetas, y partidos a la mitad no se leen. */
+.opfila-head--importes {
+  padding-top: 0;
+  gap: 16px;
+}
+.draft-importes {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.draft-importe {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.draft-importe-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.draft-importe-val {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-mid);
+}
+.draft-importe--total .draft-importe-val {
+  font-size: 15px;
+  color: var(--green-dark);
+}
+
+/* ===== Productos de un draft ===== */
+.productos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.producto {
+  border: 1px solid var(--tint-data-bd);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.producto-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.producto-nom {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* ===== Períodos sugeridos, en la confirmación del envío ===== */
+.periodos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.periodo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--tint-summary-bd);
+  border-radius: 8px;
+  background: var(--tint-summary);
+}
+.periodo-tit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.periodo-drafts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ===== Cortes del dashboard de drafts ===== */
+.corte {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  border-bottom: 1px solid #f0f1f5;
+}
+.corte:last-child {
+  border-bottom: none;
+}
+.corte-clave {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  min-width: 0;
+}
+.corte-datos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .draft-importes {
+    gap: 12px;
+  }
+  .corte-datos {
+    margin-left: 0;
+  }
+}
+
+/* La ficha de una OP va en verde muy claro, no en blanco: lo que se está mirando ahí es lo que YA
+   está cargado —los vacíos ni aparecen—, y el verde es el color que en toda la app significa
+   "esto es lo que vale". Sobre el blanco de la fila, además, separa la ficha del resto. */
+.dato--ficha {
+  background: #f3faf5;
+  border-color: #cfe9da;
+}
+.dato--ficha .dato-lbl {
+  color: #3f7a5c;
+}
+.dato--ficha .dato-val {
+  color: #14532d;
+}
+
+/* ==================================================================== *
+ * Fechas de producción
+ * ==================================================================== */
+
+/* La fecha es lo que se está decidiendo, así que no va como una etiqueta más entre las otras seis:
+   va grande, a la derecha, con su rótulo arriba. */
+.fecha-prod {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #eef5ff;
+  border: 1px solid #bcd6f5;
+}
+.fecha-prod-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #1256a8;
+}
+.fecha-prod-val {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #0b3d7a;
+}
+.fecha-prod--propuesta {
+  background: #fff8e6;
+  border-color: #ffe08a;
+}
+.fecha-prod--propuesta .fecha-prod-lbl {
+  color: #8a5a00;
+}
+.fecha-prod--propuesta .fecha-prod-val {
+  color: #6b4400;
+}
+.fechas-par {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.fechas-par .fecha-prod {
+  margin-left: 0;
+}
+
+/* Confirmar o proponer: dos tarjetas grandes, excluyentes. La elegida se pinta entera; la otra
+   queda en blanco. Un desplegable con dos opciones escondería justo la decisión de la pantalla. */
+.decision {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radio);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.opcion:hover:not(:disabled) {
+  border-color: var(--text-gray);
+}
+.opcion:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.opcion-ic {
+  flex: 0 0 auto;
+  font-size: 20px;
+  color: var(--text-gray);
+}
+.opcion-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.opcion-tit {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.opcion-det {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+.opcion--confirmar.opcion--elegida {
+  background: #eef9f2;
+  border-color: var(--green);
+}
+.opcion--confirmar.opcion--elegida .opcion-ic,
+.opcion--confirmar.opcion--elegida .opcion-tit {
+  color: var(--green-dark);
+}
+.opcion--proponer.opcion--elegida {
+  background: #fff8e6;
+  border-color: var(--orange);
+}
+.opcion--proponer.opcion--elegida .opcion-ic,
+.opcion--proponer.opcion--elegida .opcion-tit {
+  color: #8a5a00;
+}
+/* Variante grande de la decisión, para el paso "¿qué vas a hacer?" del despachante.
+   Ahí la elección es lo ÚNICO de la pantalla, y con el tamaño chico quedaba más discreta que las
+   tarjetas del panel de operaciones que se acaban de dejar atrás. Se toma de referencia
+   `.panel-opcion`: mismo peso visual, misma escala de texto, mismo ícono en baldosa de color. */
+.decision--grande {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+.decision--grande .opcion {
+  align-items: flex-start;
+  gap: 16px;
+  min-height: 112px;
+  padding: 18px 20px;
+  border-width: 1.5px;
+  border-radius: 14px;
+  box-shadow: var(--sombra);
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background 0.14s ease,
+    transform 0.14s ease;
+}
+.decision--grande .opcion:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.decision--grande .opcion-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 22px;
+  color: #fff;
+}
+.decision--grande .opcion-txt {
+  gap: 5px;
+  padding-top: 2px;
+}
+.decision--grande .opcion-tit {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.decision--grande .opcion-det {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-mid);
+}
+
+/* Un color por acción: actualizar datos es azul (la tarea de todos los días) y armar contenedores
+   es ámbar (el paso que habilita el arribo). Que no compartan color es lo que hace que se elija
+   por reconocimiento y no leyendo las dos. */
+.decision--grande .opcion--confirmar {
+  background: var(--tint-input);
+  border-color: var(--tint-input-bd);
+}
+.decision--grande .opcion--confirmar .opcion-ic {
+  background: var(--primary-blue);
+}
+.decision--grande .opcion--confirmar .opcion-tit {
+  color: #0a4f9e;
+}
+.decision--grande .opcion--confirmar:hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--primary-blue);
+  box-shadow:
+    0 0 0 3px rgba(0, 115, 234, 0.12),
+    var(--sombra-alta);
+}
+.decision--grande .opcion--proponer {
+  background: #fff8e6;
+  border-color: #f2d795;
+}
+.decision--grande .opcion--proponer .opcion-ic {
+  background: var(--orange);
+}
+.decision--grande .opcion--proponer .opcion-tit {
+  color: #8a5a00;
+}
+.decision--grande .opcion--proponer:hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--orange);
+  box-shadow:
+    0 0 0 3px rgba(253, 171, 61, 0.2),
+    var(--sombra-alta);
+}
+
+/* Deshabilitada: se apaga el color en vez de bajar la opacidad de todo. Atenuar una tarjeta de
+   color la deja ilegible, y justo ahí es donde el detalle explica QUÉ falta para habilitarla. */
+.decision--grande .opcion:disabled {
+  opacity: 1;
+  background: var(--tint-neutral);
+  border-color: var(--tint-neutral-bd);
+  box-shadow: none;
+}
+.decision--grande .opcion:disabled .opcion-ic {
+  background: #c3c8d4;
+}
+.decision--grande .opcion:disabled .opcion-tit {
+  color: var(--text-gray);
+}
+.decision--grande .opcion:disabled .opcion-det {
+  color: var(--text-gray);
+}
+
+/* El requisito de cada tarjeta, al pie de su propio texto: por qué no se puede todavía, o qué
+   conviene dejar hecho antes de ir a la otra. */
+.opcion-req {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  color: var(--text-mid);
+}
+.opcion-req--falta {
+  background: var(--berger-red-soft);
+  border-color: var(--berger-red-bd);
+  color: var(--berger-red-dark);
+}
+.opcion-req--aviso {
+  background: #fff8e6;
+  border-color: #f2d795;
+  color: #8a5a00;
+}
+.opcion-req--ok {
+  background: var(--green-soft);
+  border-color: var(--green-bd);
+  color: var(--green-dark);
+}
+
+@media (max-width: 560px) {
+  .decision--grande .opcion {
+    min-height: 0;
+    padding: 14px 15px;
+  }
+  .decision--grande .opcion-ic {
+    width: 44px;
+    height: 44px;
+    font-size: 19px;
+  }
+  .decision--grande .opcion-tit {
+    font-size: 15.5px;
+  }
+}
+
+.campo--propuesta {
+  margin-top: 12px;
+  max-width: 280px;
+}
+.campo-ayuda--falta {
+  color: var(--berger-red-dark);
+  font-weight: 600;
+}
+
+/* La planilla de Google, incrustada. Alta pero no infinita: se ve de qué se trata y se puede
+   abrir aparte para mirarla en serio. */
+.planilla {
+  width: 100%;
+  height: 420px;
+  border: none;
+  border-top: 1px solid var(--tint-data-bd);
+  display: block;
+}
+
+/* La confirmación explícita de que alguien miró la planilla. De acá sale un mail al proveedor:
+   la app no puede dar por hecho que se revisó. */
+.revisada {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--tint-summary-bd);
+  border-radius: var(--radio);
+  background: var(--tint-summary);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green-dark);
+  cursor: pointer;
+}
+.revisada input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--green);
+}
+
+@media (max-width: 640px) {
+  .fecha-prod,
+  .fechas-par {
+    margin-left: 0;
+  }
+  .planilla {
+    height: 320px;
+  }
+}
+
+/* ==================================================================== *
+ * Selector de período con búsqueda
+ *
+ * Reemplaza al <select> nativo de 120 opciones. La tipografía de los períodos es distinta a
+ * propósito —más ancha y en negrita— porque lo que se elige acá es un DATO, no una opción de
+ * menú: tiene que leerse como se lee una fecha.
+ * ==================================================================== */
+
+.combo {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ===== El botón cerrado ===== */
+.combo-boton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.combo-boton:hover {
+  border-color: var(--primary-blue);
+}
+.combo-boton[aria-expanded='true'] {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.14);
+}
+/* Con período elegido el control se pinta: de un vistazo se ve cuáles ya están resueltos. */
+.combo-boton--elegido {
+  background: #f3faf5;
+  border-color: #bfe6cf;
+}
+.combo-ic {
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: var(--primary-blue);
+}
+.combo-boton--elegido .combo-ic {
+  color: var(--green-dark);
+}
+.combo-vacio {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-gray);
+}
+.combo-valor {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+.combo-mes {
+  font-family: 'Segoe UI Semibold', 'Trebuchet MS', ui-rounded, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--green-dark);
+}
+.combo-anio {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #3f7a5c;
+}
+.combo-flecha {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-gray);
+}
+
+/* ===== El panel abierto ===== */
+.combo-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--sombra-alta);
+  overflow: hidden;
+}
+.combo-buscador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--tint-neutral);
+  color: var(--text-gray);
+}
+.combo-input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-dark);
+  min-width: 0;
+}
+.combo-input::placeholder {
+  color: var(--text-gray);
+}
+.combo-limpiar {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-gray);
+  font-size: 12px;
+  padding: 2px 4px;
+}
+.combo-limpiar:hover {
+  color: var(--berger-red);
+}
+
+.combo-lista {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+/* El año como separador fijo: se recorre la lista de a bloques en vez de leer 120 renglones. */
+.combo-anio-sep {
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  padding: 6px 10px 4px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--primary-blue);
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 2px;
+}
+
+/* Cada opción: celda ancha, mes en negrita grande y año a la derecha. */
+.combo-opcion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.combo-opcion-mes {
+  flex: 1;
+  font-family: 'Segoe UI Semibold', 'Trebuchet MS', ui-rounded, system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-dark);
+}
+.combo-opcion-anio {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-gray);
+}
+/* El resaltado sigue al mouse Y a las flechas del teclado: es el mismo estado, no dos. */
+.combo-opcion--resaltada {
+  background: var(--tint-input);
+}
+.combo-opcion--resaltada .combo-opcion-mes {
+  color: #0b3d7a;
+}
+.combo-opcion--elegida {
+  background: #eef9f2;
+}
+.combo-opcion--elegida .combo-opcion-mes,
+.combo-opcion--elegida .combo-opcion-anio,
+.combo-opcion--elegida i {
+  color: var(--green-dark);
+}
+
+.combo-sin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  font-size: 12.5px;
+  color: var(--text-gray);
+}
+
+@media (max-width: 640px) {
+  .combo {
+    max-width: none;
+  }
+  .combo-lista {
+    max-height: 240px;
+  }
+  .combo-opcion {
+    min-height: 46px;
+  }
+}
+
+/* ==================================================================== *
+ * Comprobantes del trámite, contenedores y cortes del dashboard
+ * ==================================================================== */
+
+.archivos {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-soft);
+}
+.archivos-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--text-mid);
+  margin-bottom: 10px;
+}
+.archivos-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+.archivo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.archivo-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+/* Lo que ya está adjunto en monday: se muestra para que quede claro que subir otro lo SUMA. */
+.archivo-cargado {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* ===== Tractores de un contenedor ===== */
+.tractores-cont {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.tractor-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--tint-data-bd);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+.tractor-fila:hover {
+  border-color: var(--primary-blue);
+}
+.tractor-fila--sel {
+  background: #eef9f2;
+  border-color: var(--green);
+}
+/* Un tractor que ya está en otro contenedor: se ve, pero se distingue de los libres. */
+.tractor-fila--otro {
+  opacity: 0.6;
+}
+.tractor-fila--lectura {
+  cursor: default;
+}
+.tractor-fila--lectura:hover {
+  border-color: var(--tint-data-bd);
+}
+.tractor-nom {
+  font-size: 12.5px;
+  color: var(--text-mid);
+}
+
+/* El chasis es lo ÚNICO que distingue dos unidades del mismo modelo: va en monoespaciado y
+   destacado, como se lee una matrícula. */
+.chasis {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #3730a3;
+  background: #eef0fe;
+  border: 1px solid #c7cdfa;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.chasis--chico {
+  font-size: 11.5px;
+  padding: 1px 6px;
+}
+
+/* ===== Tarjetas del dashboard que se abren ===== */
+.tarjeta--boton {
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.tarjeta--boton:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--sombra);
+}
+.tarjeta--abierta {
+  box-shadow: 0 0 0 2px currentColor inset;
+}
+.tarjeta-ver {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.corte-abierto {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radio);
+  background: #fff;
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+
+/* Los contenedores de una OP, en línea debajo de su ficha. */
+.conts-linea {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.cont-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #b3e5e1;
+  border-radius: 10px;
+  background: #e8f8f7;
+  min-width: 0;
+}
+.cont-num {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f766e;
+}
+.cont-chips,
+.cont-tractores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+@media (max-width: 640px) {
+  .archivos-grilla,
+  .conts-linea {
+    grid-template-columns: 1fr;
+  }
+  .chasis {
+    font-size: 12px;
+  }
+}
+
+/* Un chip que además es link: el adjunto del VEP se abre desde acá. */
+.chip--link {
+  text-decoration: none;
+  cursor: pointer;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip--link:hover {
+  text-decoration: underline;
+}
+
+/* Un campo que el estado actual vuelve obligatorio. */
+.campo-req {
+  font-weight: 700;
+  color: var(--berger-red-dark);
+}
+.input--error {
+  border-color: var(--berger-red);
+  background: var(--berger-red-soft);
+}
+
+/* ============================================================================
+   Comprobantes, en lista
+   ============================================================================
+   Ocho recuadros de arrastrar y soltar ocupaban una pantalla entera para repetir ocho veces el
+   mismo texto. En una lista cada comprobante es un renglón: a la izquierda cómo se llama, en el
+   medio lo que tiene, y a la derecha el botón que abre el explorador. */
+.archivos-nota {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-gray);
+  text-transform: none;
+}
+.archivos-lista {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.farch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: #fff;
+}
+.farch:last-child {
+  border-bottom: 0;
+}
+.farch:nth-child(even) {
+  background: var(--tint-data);
+}
+.farch-nom {
+  flex: 0 0 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.farch-rot {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+.farch-varios {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--primary-blue);
+  letter-spacing: 0.2px;
+}
+.farch-tags {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.farch-vacio {
+  font-size: 12px;
+  color: var(--text-gray);
+}
+.farch-pend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.farch-peso {
+  font-weight: 600;
+  opacity: 0.75;
+}
+/* La cruz para sacar un adjunto ANTES de guardar: hasta ahí no viajó nada. */
+.farch-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  cursor: pointer;
+  font-size: 9px;
+}
+.farch-x:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+.farch-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .farch {
+    flex-wrap: wrap;
+  }
+  .farch-nom {
+    flex-basis: 100%;
+  }
+  .farch-btn {
+    margin-left: auto;
+  }
+}
+
+/* El pie dice por qué el botón está apagado: un botón gris sin motivo es un callejón. */
+.pie-traba {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--berger-red-dark);
+}
+
+/* Un draft desplegado desde una tarjeta del dashboard: todo lo que tiene, sin ir a monday. */
+.draft-ficha {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.draft-ficha:last-child {
+  border-bottom: 0;
+}
+.draft-ficha-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.draft-ficha-nom {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+/* Un comprobante que todavía no se puede adjuntar: se dice el motivo en el lugar del archivo. */
+.farch-trabado {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--berger-red-dark);
+}
+
+/* ============================================================================
+   Tractores a elegir, en cajitas
+   ============================================================================
+   Antes eran filas a lo ancho de la pantalla: 1400px para mostrar un chasis y un modelo, con la
+   mitad vacía y el ojo recorriendo de punta a punta. En cajitas entran varias por renglón —cuántas
+   depende del ancho— y la cuenta de lo que va en el contenedor se hace de un vistazo. */
+.tractores-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.tcaja {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--tint-data-bd);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.tcaja:hover {
+  border-color: var(--primary-blue);
+}
+.tcaja--sel {
+  background: #eef9f2;
+  border-color: var(--green);
+}
+/* Un tractor que ya está en otro contenedor: se ve, pero se distingue de los libres. */
+.tcaja--otro {
+  opacity: 0.6;
+}
+.tcaja .chasis {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tcaja .tractor-nom {
+  font-size: 12px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+/* La marca de elegido va arriba a la derecha, fuera del flujo: adentro empujaba el chasis. */
+.tcaja .trow-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.tcaja-otro {
+  margin-top: 2px;
+}
+
+/* ============================================================================
+   Cargar varios contenedores a la vez
+   ============================================================================
+   Un barco trae seis contenedores que van al mismo depósito, con el mismo transportista y el mismo
+   día de arribo. Cargarlo seis veces no es sólo lento: es donde aparece el que quedó distinto
+   porque se saltó una fila. */
+.lote {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1.5px solid var(--primary-blue);
+  border-radius: 12px;
+  background: var(--tint-input);
+  box-shadow: var(--sombra);
+}
+.lote-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lote-tit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0a4f9e;
+}
+.lote-det {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-mid);
+}
+.lote-acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* El resumen: qué le va a pasar a cada uno. Guardar en lote sin verlo es firmar a ciegas. */
+.lote-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--tint-input-bd);
+}
+.lote-resumen-tit {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--text-mid);
+}
+.lote-resumen .btn {
+  align-self: flex-start;
+}
+
+/* El PDF que subió el despachante, con su rótulo: se abre en una pestaña, no se descarga a ciegas. */
+.vep-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 11px;
+  border: 1px solid var(--green-bd);
+  border-radius: 9px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  text-decoration: none;
+  max-width: 100%;
+}
+.vep-ver:hover {
+  border-color: var(--green);
+  background: #fff;
+}
+.vep-ver-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.vep-ver-rot {
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.vep-ver-arch {
+  font-size: 11px;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Ya tenés todo para marcarlo": el recordatorio con el botón al lado. La app no lo marca sola
+   —el estado queda cerrado al guardar y sólo se revierte desde monday—, pero lo deja a un toque. */
+.vep-listo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--green-bd);
+  border-radius: 10px;
+  background: var(--green-soft);
+}
+.vep-listo-txt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--green-dark);
+}
+.vep-listo-txt > i {
+  font-size: 14px;
+}
+
+/* El arribo del lote: un solo bloque, porque marcar que llegó y decir cuándo son el mismo acto. */
+.lote-arribo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--tint-input-bd);
+  border-radius: 10px;
+  background: #fff;
+}
+.lote-arribo-tit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--text-dark);
+}
+.lote-arribo-fila {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lote-arribo-det {
+  font-size: 11.5px;
+  color: var(--text-gray);
+}
+
+/*
+ * Una decisión donde hay una elegida.
+ *
+ * `.decision--grande` se usa para dos cosas distintas: tarjetas que LLEVAN a algún lado —ahí cada
+ * una tiene su color y las dos están siempre encendidas— y tarjetas entre las que se ELIGE, que es
+ * este caso. Con las dos pintadas todo el tiempo, la elegida se distinguía sólo por el borde: a un
+ * metro de la pantalla las dos se veían igual, y había que leer para saber dónde estaba parado uno.
+ *
+ * Acá el color pasa a significar algo: la que no está elegida se apaga —fondo blanco, ícono gris—
+ * y la elegida se queda con el color entero, un anillo alrededor y un tilde arriba a la derecha.
+ */
+.decision--elige .opcion {
+  position: relative;
+  background: #fff;
+  border-color: var(--border);
+  box-shadow: none;
+}
+.decision--elige .opcion .opcion-ic {
+  background: #d5d9e3;
+  color: #fff;
+}
+.decision--elige .opcion .opcion-tit {
+  color: var(--text-mid);
+}
+.decision--elige .opcion .opcion-det {
+  color: var(--text-gray);
+}
+.decision--elige .opcion:hover:not(:disabled) {
+  border-color: var(--text-gray);
+  background: #fcfcfd;
+  box-shadow: var(--sombra);
+}
+
+/* El tilde: con dos tarjetas una al lado de la otra, es lo que se ve antes que el color. */
+.decision--elige .opcion--elegida::after {
+  content: '\f00c';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 11px;
+  color: #fff;
+}
+
+.decision--elige .opcion--confirmar.opcion--elegida {
+  background: var(--tint-input);
+  border-color: var(--primary-blue);
+  box-shadow:
+    0 0 0 3px rgba(0, 115, 234, 0.16),
+    var(--sombra-alta);
+}
+.decision--elige .opcion--confirmar.opcion--elegida .opcion-ic,
+.decision--elige .opcion--confirmar.opcion--elegida::after {
+  background: var(--primary-blue);
+  color: #fff;
+}
+.decision--elige .opcion--confirmar.opcion--elegida .opcion-tit {
+  color: #0a4f9e;
+}
+
+.decision--elige .opcion--proponer.opcion--elegida {
+  background: #fff8e6;
+  border-color: var(--orange);
+  box-shadow:
+    0 0 0 3px rgba(253, 171, 61, 0.22),
+    var(--sombra-alta);
+}
+.decision--elige .opcion--proponer.opcion--elegida .opcion-ic,
+.decision--elige .opcion--proponer.opcion--elegida::after {
+  background: var(--orange);
+  color: #fff;
+}
+.decision--elige .opcion--proponer.opcion--elegida .opcion-tit {
+  color: #8a5a00;
+}
+
+.decision--elige .opcion--elegida .opcion-det {
+  color: var(--text-mid);
+}
+
+/* La tercera tarjeta de una decisión: corregir algo que ya existe. Verde, porque no crea ni
+   reemplaza nada —ajusta lo que está— y porque azul y ámbar ya están tomados. */
+.decision--elige .opcion--editar.opcion--elegida {
+  background: var(--green-soft);
+  border-color: var(--green);
+  box-shadow:
+    0 0 0 3px rgba(0, 200, 117, 0.18),
+    var(--sombra-alta);
+}
+.decision--elige .opcion--editar.opcion--elegida .opcion-ic,
+.decision--elige .opcion--editar.opcion--elegida::after {
+  background: var(--green-dark);
+  color: #fff;
+}
+.decision--elige .opcion--editar.opcion--elegida .opcion-tit {
+  color: var(--green-dark);
+}

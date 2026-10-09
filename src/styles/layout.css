@@ -1,0 +1,548 @@
+/* Contenedor de la app. Ocupa el panel entero del tablero de monday y es lo único que scrollea:
+   la barra de marca y el selector de operación quedan fijos arriba, y el pie de acción abajo.
+
+   Esa estructura es lo que hace que la app sirva en un celular: con toda la pantalla scrolleando,
+   el botón que cierra la operación queda al fondo de una lista de treinta tractores. */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  /* Contenedor de consulta: el layout se reordena según el ANCHO REAL del panel, que en monday
+     depende de los paneles laterales abiertos, no del viewport. */
+  container-type: inline-size;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Inercia de scroll en iOS; sin esto el movimiento se siente trabado dentro del WebView. */
+  -webkit-overflow-scrolling: touch;
+  padding: 20px var(--gutter) 24px;
+  background: var(--bg);
+}
+
+/* Franja del selector de operación: fija, entre la marca y el contenido. */
+.barra-ops {
+  flex: 0 0 auto;
+  padding: 16px var(--gutter) 0;
+  background: var(--bg);
+}
+
+.view {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+/* Grillas reutilizadas por las secciones. */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@container (max-width: 760px) {
+  .grid2,
+  .grid3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pie de acción: la acción principal del paso está siempre a la vista, sin depender del scroll. */
+.pie {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px var(--gutter);
+  border-top: 1px solid var(--border-soft);
+  background: #fff;
+  box-shadow: 0 -2px 8px rgba(16, 24, 40, 0.04);
+  /* Deja libre la franja del gesto de inicio del celular; en el resto vale 0. */
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+.pie-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pie-info .font-b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pie-acciones {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Total del pie: del lado derecho, junto al botón que lo registra. */
+.pie-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-right: 6px;
+  text-align: right;
+  line-height: 1.15;
+}
+.pie-total-lbl {
+  font-size: 11px;
+  color: var(--text-gray);
+}
+.pie-total-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Celular ===== */
+@media (max-width: 640px) {
+  .scroll {
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+  .barra-ops {
+    padding-top: 10px;
+  }
+
+  /* El pie pasa a dos filas: el resumen arriba y el botón ocupando el ancho completo abajo.
+     En una sola fila, el botón principal queda en una tira de 90px contra el borde, que es
+     justo donde peor se acierta con el pulgar. */
+  .pie {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .pie-acciones {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  /* En el celular el total ocupa su propio renglón: rótulo a la izquierda, importe contra el
+     borde derecho, y los botones debajo a lo ancho. */
+  .pie-total {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-right: 0;
+  }
+  /* El botón principal manda; "Volver" se queda con lo mínimo. */
+  .pie-acciones .btn {
+    flex: 1;
+    min-height: var(--toque);
+  }
+  .pie-acciones .btn--texto {
+    flex: 0 0 auto;
+  }
+}
+
+/* ===== Pantalla de acceso denegado =====
+   Ocupa el panel entero y está centrada: es la pantalla completa, no un cartel encima de la app.
+   Cuando se muestra, no hay ninguna otra cosa dibujada. */
+.sin-acceso {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  padding: 32px var(--gutter);
+  text-align: center;
+  background: var(--bg);
+}
+.sin-acceso-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: var(--berger-red-soft);
+  color: var(--berger-red);
+  font-size: 30px;
+}
+.sin-acceso-tit {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-dark);
+  line-height: 1.25;
+}
+.sin-acceso-det {
+  font-size: 14px;
+  color: var(--text-gray);
+  max-width: 420px;
+  line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .sin-acceso-ic {
+    width: 66px;
+    height: 66px;
+    font-size: 26px;
+  }
+  .sin-acceso-tit {
+    font-size: 20px;
+  }
+}
+
+/* ===== Paneles de elección (operación principal y modalidad) ===== */
+.panel-head {
+  margin: 8px 0 20px;
+}
+.panel-tit {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+.panel-det {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-gray);
+}
+.panel-opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.panel-opcion {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 112px;
+  padding: 20px;
+  border: 1px solid var(--tint-neutral-bd);
+  border-radius: 14px;
+  background: var(--tint-neutral);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--sombra);
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background 0.14s ease,
+    transform 0.14s ease;
+}
+.panel-opcion:hover {
+  border-color: var(--berger-red);
+  background: #fff;
+  box-shadow:
+    0 0 0 3px rgba(225, 27, 34, 0.1),
+    var(--sombra-alta);
+}
+.panel-opcion:active {
+  transform: scale(0.99);
+}
+.panel-opcion:focus-visible {
+  outline: none;
+  border-color: var(--berger-red);
+  box-shadow: 0 0 0 3px rgba(225, 27, 34, 0.25);
+}
+.panel-opcion-ic {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: var(--berger-red);
+  color: #fff;
+  font-size: 22px;
+}
+.panel-opcion-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.panel-opcion-tit {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--text-dark);
+}
+.panel-opcion-det {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-gray);
+}
+.panel-opcion-flecha {
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: #b3b9c6;
+  transition:
+    transform 0.14s ease,
+    color 0.14s ease;
+}
+.panel-opcion:hover .panel-opcion-flecha {
+  color: var(--berger-red);
+  transform: translateX(3px);
+}
+
+/* Nota al lado del botón del pie: explica por qué el botón está deshabilitado. */
+.pie-nota {
+  white-space: normal;
+}
+
+@media (max-width: 640px) {
+  .panel-head {
+    margin: 4px 0 14px;
+  }
+  .panel-tit {
+    font-size: 20px;
+  }
+  .panel-det {
+    font-size: 13px;
+  }
+  /* Una tarjeta por fila: con 300px de mínimo ya pasa sola, pero así queda explícito. */
+  .panel-opciones {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .panel-opcion {
+    min-height: 92px;
+    padding: 16px;
+    gap: 14px;
+  }
+  .panel-opcion-ic {
+    width: 46px;
+    height: 46px;
+    font-size: 19px;
+    border-radius: 12px;
+  }
+  .panel-opcion-tit {
+    font-size: 16px;
+  }
+  /* En VISTA la nota y el botón comparten el pie: la nota pasa arriba, a lo ancho. */
+  .pie-acciones:has(.pie-nota) {
+    flex-wrap: wrap;
+  }
+  .pie-nota {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Aviso a todo el ancho, entre la barra y el contenido (por ejemplo, después de entrar con un
+   código de recuperación). No es una card: es un estado de la sesión, no del contenido. */
+.aviso--banda {
+  flex: 0 0 auto;
+  margin: 0;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  padding: 10px var(--gutter);
+}
+
+/* ============================================================================
+   Secciones del panel de operaciones
+   ============================================================================
+   En DESPACHO DE ADUANA conviven dos trabajos sobre las mismas OP: el del despachante y el de
+   BERGER. Con los nombres completos, lo que los distinguía estaba al final del renglón. Agrupados
+   y con color, el nombre corto alcanza. */
+.panel-grupo {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--grupo-bd);
+  border-left: 4px solid var(--grupo-color);
+  border-radius: 14px;
+  background: var(--grupo-bg);
+}
+.panel-grupo--azul {
+  --grupo-color: #0073ea;
+  --grupo-bd: #bcd6f5;
+  --grupo-bg: #f4f9ff;
+}
+.panel-grupo--naranja {
+  --grupo-color: #e08600;
+  --grupo-bd: #f2d795;
+  --grupo-bg: #fffaf0;
+}
+.panel-grupo-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.panel-grupo-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: var(--grupo-color);
+  color: #fff;
+  font-size: 16px;
+}
+.panel-grupo-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.panel-grupo-tit {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--grupo-color);
+}
+.panel-grupo-det {
+  font-size: 12.5px;
+  color: var(--text-gray);
+}
+/* Dentro de un grupo las tarjetas van en blanco: el color lo pone el marco, no cada una. */
+.panel-grupo .panel-opcion {
+  background: #fff;
+}
+.panel-grupo .panel-opcion:hover {
+  border-color: var(--grupo-color);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--grupo-color) 14%, transparent),
+    var(--sombra-alta);
+}
+.panel-grupo .panel-opcion-ic {
+  background: var(--grupo-color);
+}
+.panel-grupo .panel-opcion:hover .panel-opcion-flecha {
+  color: var(--grupo-color);
+}
+
+
+/* ===== Panel lateral ===== */
+
+.lateral-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: none;
+  padding: 0;
+  background: rgba(16, 24, 40, 0.35);
+  cursor: pointer;
+}
+.lateral {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 41;
+  width: min(360px, 88vw);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 24px rgba(16, 24, 40, 0.14);
+}
+.lateral-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.lateral-tit {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.lateral-cerrar {
+  border: none;
+  background: none;
+  color: var(--text-gray);
+  font-size: 17px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.lateral-cerrar:hover {
+  background: var(--tint-neutral);
+  color: var(--text-dark);
+}
+.lateral-buscador {
+  flex: 0 0 auto;
+  padding: 12px 16px 4px;
+}
+.lateral-arbol {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 10px 18px;
+}
+.lateral-grupo {
+  margin-top: 10px;
+}
+.lateral-grupo-tit {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 8px 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.lateral-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  text-align: left;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.lateral-item:hover {
+  background: var(--tint-neutral);
+}
+.lateral-item--on {
+  background: #e6f1fd;
+  color: #0b4da2;
+}
+.lateral-item > i {
+  width: 18px;
+  text-align: center;
+  color: var(--berger-red);
+}
+.lateral-item--on > i {
+  color: var(--primary-blue);
+}
+.lateral-item-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lateral-item-tit {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.lateral-item-donde {
+  font-size: 11px;
+  color: var(--text-gray);
+}

@@ -1,0 +1,32 @@
+{
+  "name": "berger-app-concesionarios-bergersa",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Monday board view app · CONCESIONARIOS BERGER S.A. — Pedidos de los concesionarios",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "npm run verificar:api && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "verificar:api": "node scripts/verificar-api.mjs"
+  },
+  "dependencies": {
+    "monday-sdk-js": "^1.0.0-beta",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.6.3",
+    "vite": "^7.3.6"
+  }
+}
