@@ -90,6 +90,8 @@ export interface PedidoLeido {
   totalListaSinIva: number
   totalFacturaSinIva: number
   totalFacturaConIva: number
+  /** Qué porcentaje de las unidades ya tiene tractor (0 a 100), según lo dejó Asignar. */
+  porcentajeAsignacion: number
   renglones: RenglonLeido[]
 }
 
@@ -128,6 +130,7 @@ const COLUMNAS_PEDIDO = [
   COL_PEDIDO.totalListaSinIva,
   COL_PEDIDO.totalFacturaSinIva,
   COL_PEDIDO.totalFacturaConIva,
+  COL_PEDIDO.porcentajeAsignacion,
 ]
 
 const COLUMNAS_RENGLON = [
@@ -180,6 +183,7 @@ export async function pedidosCargados(limite = 200): Promise<PedidoLeido[]> {
       totalListaSinIva: numero(c[COL_PEDIDO.totalListaSinIva]),
       totalFacturaSinIva: numero(c[COL_PEDIDO.totalFacturaSinIva]),
       totalFacturaConIva: numero(c[COL_PEDIDO.totalFacturaConIva]),
+      porcentajeAsignacion: numero(c[COL_PEDIDO.porcentajeAsignacion]),
       renglones: (it.subitems ?? []).map((s) => {
         const sc = porId(s.column_values)
         return {

@@ -24,6 +24,12 @@ export interface Perfil {
   idTeam: string
   tipoUsuario: string
   autenticadorDesactivado: boolean
+  /**
+   * Los equipos de monday que le sirven a la pantalla para saber de qué concesionario es: los suyos
+   * si es un concesionario, todos si es de Administración (puede cargar a nombre de cualquiera).
+   * Se completa al ingresar (`equiposVisibles`); la Lista Blanca no lo trae.
+   */
+  equiposMonday?: { id: string; nombre: string }[]
 }
 
 interface ItemCrudo {

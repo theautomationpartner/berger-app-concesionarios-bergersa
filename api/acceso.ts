@@ -40,7 +40,7 @@ import {
   verificarTotp,
 } from './_seguridad/cripto'
 import { emailDeUsuario, type Perfil } from './_seguridad/listaBlanca'
-import { modulosDelPerfil, type Modulo } from './_seguridad/modulos'
+import { equiposVisibles, esDeAdministracion, modulosDelPerfil, type Modulo } from './_seguridad/modulos'
 import { ipDe, registrar } from './_seguridad/registro'
 import { emitirSesion, verificarSesionApp } from './_seguridad/sesionApp'
 
@@ -82,6 +82,9 @@ const publico = (p: Perfil) => ({
   equipos: p.teams,
   equipoId: p.idTeam,
   usuarioId: p.usuarioId,
+  /** Administración carga a nombre de cualquier concesionario; un concesionario, sólo del suyo. */
+  esAdministracion: esDeAdministracion(p),
+  equiposMonday: p.equiposMonday ?? [],
 })
 
 export default async function handler(req: Request): Promise<Response> {
@@ -154,6 +157,9 @@ export default async function handler(req: Request): Promise<Response> {
       })
       return sinAcceso()
     }
+
+    /* 2c. Sus equipos de monday: es lo que le dice a la pantalla de qué concesionario es. */
+    perfil = { ...perfil, equiposMonday: await equiposVisibles(perfil, usuarioId) }
 
     const nuevaSesion = (mfa: boolean) =>
       emitirSesion({ uid: usuarioId, pid: perfil.id, app: appId, mfa, mods: modulos })

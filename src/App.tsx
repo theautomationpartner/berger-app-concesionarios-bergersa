@@ -6,7 +6,8 @@ import { clienteVistaPrevia } from '@/features/acceso/clienteVistaPrevia'
 import { Ingreso, type SesionIngreso } from '@/features/acceso/Ingreso'
 import { BarraNavegacion } from '@/features/inicio/BarraNavegacion'
 import { PanelOpciones } from '@/features/inicio/PanelOpciones'
-import { GestionarPedidos } from '@/features/ventas/GestionarPedidos'
+import { CrearPedido } from '@/features/pedidos/CrearPedido'
+import { MisPedidos } from '@/features/ventas/MisPedidos'
 import { useAccesoMonday } from '@/hooks/useAccesoMonday'
 import { motivoParaNoSalir } from '@/hooks/useSalidaProtegida'
 import {
@@ -27,6 +28,15 @@ import { mondayHabilitado } from '@/services/monday/sdk'
  */
 const VISTA_PREVIA_INGRESO =
   import.meta.env.DEV && new URLSearchParams(window.location.search).has('vista-previa')
+
+/**
+ * En desarrollo, `?concesionario=BRUNO MAQUINARIAS S.R.L.` entra como un comercial de ese
+ * concesionario (su equipo de monday tiene ese nombre). Sin el parámetro, como Administración. Es
+ * sólo para mirar las pantallas en localhost: en producción los equipos los manda el servidor.
+ */
+const CONCESIONARIO_DEV = import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('concesionario')
+  : null
 
 /**
  * Vista de tablero de CONCESIONARIOS BERGER S.A. — la app de los concesionarios, instalada en el
@@ -53,7 +63,14 @@ export function App() {
     return (
       <AppAdentro
         sesion={{
-          perfil: { id: 'desarrollo', nombre: 'Desarrollo local' },
+          perfil: CONCESIONARIO_DEV
+            ? {
+                id: 'desarrollo',
+                nombre: CONCESIONARIO_DEV,
+                esAdministracion: false,
+                equiposMonday: [{ id: '', nombre: CONCESIONARIO_DEV }],
+              }
+            : { id: 'desarrollo', nombre: 'Desarrollo local', esAdministracion: true, equiposMonday: [] },
           modulos: [...MODULOS_APP],
           salir: () => {},
           recuperacionRestantes: null,
@@ -166,8 +183,21 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
         />
       )}
 
-      {ruta.principal === 'pedidos' && ruta.pedidos === 'gestionar' && puedePedidos && (
-        <GestionarPedidos equipoId={sesion.perfil.equipoId} comercialId={sesion.perfil.usuarioId} />
+      {ruta.principal === 'pedidos' && ruta.pedidos === 'crear' && puedePedidos && (
+        <CrearPedido
+          equipos={sesion.perfil.equiposMonday ?? []}
+          esAdministracion={Boolean(sesion.perfil.esAdministracion)}
+          comercialId={sesion.perfil.usuarioId}
+          onIrAMisPedidos={() => setRuta({ principal: 'pedidos', pedidos: 'mios' })}
+        />
+      )}
+
+      {ruta.principal === 'pedidos' && ruta.pedidos === 'mios' && puedePedidos && (
+        <MisPedidos
+          equipos={sesion.perfil.equiposMonday ?? []}
+          esAdministracion={Boolean(sesion.perfil.esAdministracion)}
+          usuarioId={sesion.perfil.usuarioId}
+        />
       )}
 
       {saliendo && (

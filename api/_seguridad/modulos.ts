@@ -57,6 +57,40 @@ export function modulosSegunLaLista(perfil: Perfil): Modulo[] {
   return []
 }
 
+/** ¿Es de Administración según su fila? (El acceso real lo confirma `modulosDelPerfil`.) */
+export const esDeAdministracion = esAdministracion
+
+/**
+ * Los equipos de monday que la pantalla usa para saber a nombre de qué concesionario se carga.
+ *
+ * Cada concesionario tiene en monday un equipo con el MISMO nombre que su cuenta del CRM. A un
+ * concesionario se le mandan sólo los equipos en los que está —así la pantalla elige su cuenta
+ * sola y no le ofrece otras—; a Administración, todos, porque carga pedidos a nombre de cualquiera
+ * y necesita el equipo de cada uno para que el pedido quede de ese concesionario.
+ *
+ * Nunca tira: sin equipos la pantalla avisa que el usuario no está en el equipo de ningún
+ * concesionario, que es justamente lo que hay que corregir.
+ */
+export async function equiposVisibles(
+  perfil: Perfil,
+  usuarioId: string,
+): Promise<{ id: string; nombre: string }[]> {
+  try {
+    if (esAdministracion(perfil)) {
+      const datos = await consultarMonday<{ teams: { id: string; name: string }[] | null }>(
+        `query { teams { id name } }`,
+      )
+      return (datos.teams ?? []).map((t) => ({ id: String(t.id), nombre: t.name }))
+    }
+    const datos = await consultarMonday<{
+      users: { teams: { id: string; name: string }[] | null }[] | null
+    }>(`query ($ids: [ID!]) { users(ids: $ids) { teams { id name } } }`, { ids: [usuarioId] })
+    return (datos.users?.[0]?.teams ?? []).map((t) => ({ id: String(t.id), nombre: t.name }))
+  } catch {
+    return []
+  }
+}
+
 /** ¿Este usuario de monday está en ese equipo? */
 async function estaEnElEquipo(usuarioId: string, equipoId: string): Promise<boolean> {
   const datos = await consultarMonday<{ teams: { users: { id: string }[] | null }[] | null }>(

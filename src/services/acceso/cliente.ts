@@ -23,6 +23,13 @@ export interface PerfilIngreso {
    * entonces el pedido quedaría sin comercial.
    */
   usuarioId?: string
+  /** Si es de Administración: carga a nombre de cualquier concesionario. */
+  esAdministracion?: boolean
+  /**
+   * Sus equipos de monday (todos, si es de Administración). Cada concesionario tiene un equipo con
+   * el mismo nombre que su cuenta: así se sabe de qué concesionario es quien carga.
+   */
+  equiposMonday?: { id: string; nombre: string }[]
 }
 
 /** Lo que devuelve el servidor, ya traducido a un paso de la pantalla. */

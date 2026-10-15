@@ -6,13 +6,13 @@
  * app no tiene nada más. Por eso son dos niveles y no tres —no hay COMPRA ni VENTA que elegir— y
  * no hay buscador ni panel lateral: con una sola operación, no hay nada que buscar.
  *
- * Cuando se sumen operaciones (por ejemplo, garantías), cada una entra como otra tarjeta del inicio
- * y su lista de pantallas, igual que PEDIDOS.
+ * Crear y seguir son dos pantallas y no dos solapas de una: cada una aprovecha la pantalla entera,
+ * y los pasos del pedido quedan arriba, sin una fila de opciones encima.
  */
 import type { OpcionPanel } from '@/types'
 
 export type OperacionPrincipal = 'pedidos'
-export type PantallaPedidos = 'gestionar'
+export type PantallaPedidos = 'crear' | 'mios'
 
 /** Dónde está parado el usuario. `null` es el nivel de arriba, todavía sin elegir. */
 export interface Ruta {
@@ -34,10 +34,17 @@ export const OPERACIONES_PRINCIPALES: OpcionPanel<OperacionPrincipal>[] = [
 
 export const PANTALLAS_PEDIDOS: OpcionPanel<PantallaPedidos>[] = [
   {
-    id: 'gestionar',
-    titulo: 'GESTIONAR PEDIDOS',
-    corto: 'Gestionar pedidos',
-    detalle: 'Cargar un pedido nuevo y seguir el estado de cada tractor de los que ya mandaste.',
+    id: 'crear',
+    titulo: 'CREAR PEDIDO',
+    corto: 'Crear pedido',
+    detalle: 'Elegir los tractores, cómo se pagan, y mandar la solicitud a BERGER.',
     icono: 'fa-solid fa-cart-plus',
+  },
+  {
+    id: 'mios',
+    titulo: 'MIS PEDIDOS',
+    corto: 'Mis pedidos',
+    detalle: 'En qué anda cada pedido y cada tractor, las métricas y las novedades de BERGER.',
+    icono: 'fa-solid fa-list-check',
   },
 ]

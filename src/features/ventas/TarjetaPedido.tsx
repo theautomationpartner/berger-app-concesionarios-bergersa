@@ -1,14 +1,15 @@
 /**
- * La tarjeta de un pedido: quién lo pidió, qué pidió y en qué anda.
+ * La tarjeta de un pedido, del lado del concesionario.
  *
- * La comparten las tres pantallas —Mis pedidos, Aprobar y Asignar— porque las tres miran el mismo
- * pedido desde distintos lugares, y un pedido que se ve distinto en cada pantalla es un pedido del
- * que hay que volver a aprender cada vez. Lo que cambia es lo que se puede hacer con él, y eso
- * entra como `children`.
+ * Plegada dice lo primordial en una mirada: a quién, en qué anda, qué tractores y cuánto. Lo demás
+ * —los datos, cada unidad, los totales— está al desplegarla: con diez pedidos en pantalla, el
+ * detalle de todos a la vez no se lee.
+ *
+ * No muestra el precio de lista: el pedido ya está hecho, y lo que importa es lo que se factura.
  */
 import type { ReactNode } from 'react'
 import { Plata } from '@/components/ui/Plata'
-import { APROBACION, ESTADO_PEDIDO, TIPO_PEDIDO, TIPO_VENTA } from '@/services/monday/columns'
+import { ESTADO_PEDIDO, TIPO_PEDIDO, TIPO_VENTA } from '@/services/monday/columns'
 import type { PedidoLeido, UnidadLeida } from '@/services/monday/seguimientoPedidos'
 
 /** El color del estado. Es lo primero que se mira, y conviene no tener que leerlo para saberlo. */
@@ -20,6 +21,8 @@ export function tonoDeEstado(estado: string): string {
       return 'chip--rojo'
     case ESTADO_PEDIDO.ASIGNADO:
       return 'chip--azul'
+    case ESTADO_PEDIDO.ASIGNADO_PARCIAL:
+      return 'chip--teal'
     case ESTADO_PEDIDO.A_FABRICA:
       return 'chip--violeta'
     default:
@@ -27,20 +30,9 @@ export function tonoDeEstado(estado: string): string {
   }
 }
 
-/** Lo mismo para las dos aprobaciones, que tienen sus propias etiquetas. */
-export const tonoDeAprobacion = (v: string): string =>
-  v === APROBACION.APROBADO
-    ? 'chip--verde'
-    : v === APROBACION.RECHAZADO
-      ? 'chip--rojo'
-      : 'chip--ambar'
-
 /**
- * A quién le factura BERGER.
- *
- * En la venta directa, al cliente final; en la indirecta y en la compra de stock, al concesionario.
- * Es la pregunta que se hace quien aprueba —"¿a quién le estoy dando crédito?"— y hasta ahora había
- * que deducirla cruzando dos etiquetas.
+ * A quién le factura BERGER: al cliente final en la venta directa; al concesionario en la
+ * indirecta y en la compra de stock.
  */
 export function aQuienSeLeFactura(pedido: PedidoLeido): string {
   if (pedido.tipoPedido === TIPO_PEDIDO.TERCEROS && pedido.tipoVenta === TIPO_VENTA.DIRECTA) {
@@ -49,32 +41,23 @@ export function aQuienSeLeFactura(pedido: PedidoLeido): string {
   return pedido.cuentaNombre || 'el concesionario'
 }
 
+/** "2026-10-15" → "15/10/2026". */
+const fecha = (iso: string): string => (iso ? iso.split('-').reverse().join('/') : '')
+
 interface Props {
   pedido: PedidoLeido
   /** Las unidades de ESTE pedido. */
   unidades: UnidadLeida[]
-  /** Qué se puede hacer con él. Lo pone cada pantalla. */
-  children?: ReactNode
-  /** Un panel al costado, para las decisiones. */
-  costado?: ReactNode
-  /** Para plegarlo cuando hay muchos. */
   abierto?: boolean
   onAbrir?: () => void
-  /** Las dos aprobaciones en la cabecera. Sólo le sirven a BERGER. */
-  conAprobaciones?: boolean
+  children?: ReactNode
 }
 
-export function TarjetaPedido({
-  pedido,
-  unidades,
-  children,
-  costado,
-  abierto = true,
-  onAbrir,
-  conAprobaciones,
-}: Props) {
+export function TarjetaPedido({ pedido, unidades, abierto = false, onAbrir, children }: Props) {
   const asignadas = unidades.filter((u) => u.inventarioId).length
   const iva = pedido.totalFacturaConIva - pedido.totalFacturaSinIva
+  /* El título: el cliente final si lo hay, que es como el concesionario recuerda la venta. */
+  const quien = pedido.terceroNombre || pedido.cuentaNombre || pedido.nombre
 
   return (
     <div
@@ -82,38 +65,33 @@ export function TarjetaPedido({
     >
       <button
         type="button"
-        className="pedido-card-head"
+        className="pedido-card-head pedido-card-head--compacta"
         aria-expanded={abierto}
         onClick={onAbrir}
         disabled={!onAbrir}
       >
         <span className="pedido-card-tit">
-          <span className="pedido-card-nom">{pedido.nombre}</span>
-          <span className="pedido-card-sub">
-            {pedido.tipoPedido}
-            {pedido.tipoVenta ? ` · ${pedido.tipoVenta}` : ''}
-            {pedido.pago ? ` · ${pedido.pago}` : ''}
-            {pedido.fechaSolicitud ? ` · pedido el ${pedido.fechaSolicitud}` : ''}
+          <span className="pedido-card-linea">
+            <b className="pedido-card-nom">{quien}</b>
+            <span className={`chip ${tonoDeEstado(pedido.estado)}`}>{pedido.estado || 'Sin estado'}</span>
+            {pedido.estado === ESTADO_PEDIDO.ASIGNADO_PARCIAL && (
+              <span className="chip chip--teal">{pedido.porcentajeAsignacion}% con tractor</span>
+            )}
+            {pedido.fechaSolicitud && (
+              <span className="pedido-card-fecha">{fecha(pedido.fechaSolicitud)}</span>
+            )}
+          </span>
+          {/* Un chip por modelo: qué se pidió, sin abrir nada. */}
+          <span className="pedido-card-items">
+            {pedido.renglones.map((r) => (
+              <span key={r.id} className="chip chip--gris">
+                {r.cantidad} × {r.nombre}
+              </span>
+            ))}
           </span>
         </span>
 
         <span className="pedido-card-chips">
-          <span className={`chip ${tonoDeEstado(pedido.estado)}`}>
-            {pedido.estado || 'Sin estado'}
-          </span>
-          {conAprobaciones && (
-            <>
-              <span className={`chip ${tonoDeAprobacion(pedido.aprobComercial)}`}>
-                Comercial: {pedido.aprobComercial}
-              </span>
-              <span className={`chip ${tonoDeAprobacion(pedido.aprobFinanciera)}`}>
-                Financiera: {pedido.aprobFinanciera}
-              </span>
-            </>
-          )}
-          <span className="chip chip--gris">
-            {unidades.length} unidad{unidades.length === 1 ? '' : 'es'}
-          </span>
           <Plata valor={pedido.totalFacturaSinIva} nota="+ IVA" grande />
           {onAbrir && (
             <i className={`fa-solid fa-chevron-${abierto ? 'up' : 'down'}`} aria-hidden="true" />
@@ -122,45 +100,41 @@ export function TarjetaPedido({
       </button>
 
       {abierto && (
-        <div className={`pedido-card-cuerpo${costado ? ' pedido-card-cuerpo--doble' : ''}`}>
+        <div className="pedido-card-cuerpo">
           <div className="pedido-card-principal">
             <dl className="datos-pares">
               <div>
-                <dt>Concesionario</dt>
-                <dd>{pedido.cuentaNombre || '—'}</dd>
+                <dt>Tipo</dt>
+                <dd>
+                  {pedido.tipoPedido}
+                  {pedido.tipoVenta ? ` · ${pedido.tipoVenta}` : ''}
+                </dd>
               </div>
-              {pedido.terceroNombre && (
-                <div>
-                  <dt>Cliente final</dt>
-                  <dd>{pedido.terceroNombre}</dd>
-                </div>
-              )}
               <div>
                 <dt>Se le factura a</dt>
                 <dd>{aQuienSeLeFactura(pedido)}</dd>
               </div>
               <div>
+                <dt>Forma de pago</dt>
+                <dd>
+                  {pedido.pago || '—'}
+                  {pedido.banco ? ` · ${pedido.banco}` : ''}
+                  {pedido.plazo ? ` · ${pedido.plazo}` : ''}
+                </dd>
+              </div>
+              <div>
                 <dt>Cargado por</dt>
                 <dd>{pedido.comercial || '—'}</dd>
               </div>
-              {pedido.plazo && (
-                <div>
-                  <dt>Plazo</dt>
-                  <dd>
-                    {pedido.plazo}
-                    {pedido.banco ? ` · ${pedido.banco}` : ''}
-                  </dd>
-                </div>
-              )}
               {pedido.fechaAprobacion && (
                 <div>
                   <dt>Aprobado el</dt>
-                  <dd>{pedido.fechaAprobacion}</dd>
+                  <dd>{fecha(pedido.fechaAprobacion)}</dd>
                 </div>
               )}
               {unidades.length > 0 && (
                 <div>
-                  <dt>Con tractor asignado</dt>
+                  <dt>Con tractor</dt>
                   <dd>
                     {asignadas} de {unidades.length}
                   </dd>
@@ -173,36 +147,14 @@ export function TarjetaPedido({
               <div className="aviso aviso--alerta">
                 <i className="fa-solid fa-comment-dots" aria-hidden="true" />
                 <span>
-                  <b>Observación:</b> {pedido.motivo}
+                  <b>Observación de BERGER:</b> {pedido.motivo}
                 </span>
               </div>
             )}
 
-            <div className="renglones">
-              {pedido.renglones.map((r) => (
-                <div key={r.id} className="renglon">
-                  <span className="renglon-cant">{r.cantidad}</span>
-                  <span className="renglon-nom">
-                    {r.nombre}
-                    <small>{r.estado || 'Sin estado'}</small>
-                  </span>
-                  <span className="renglon-plata">
-                    <Plata valor={r.facturaSinIva * r.cantidad} nota="s/IVA" />
-                    <small>
-                      {r.cantidad} × <b>{r.facturaSinIva.toLocaleString('es-AR')}</b>
-                    </small>
-                  </span>
-                </div>
-              ))}
-            </div>
+            {children}
 
-            {/* El total con IVA es el número que el concesionario va a transferir, así que se
-                muestra al lado del de factura y no se deja para que alguien lo calcule. */}
-            <div className="totales-pedido">
-              <div className="total-cuadro">
-                <small>Lista s/IVA</small>
-                <Plata valor={pedido.totalListaSinIva} apagado />
-              </div>
+            <div className="totales-pedido totales-pedido--tres">
               <div className="total-cuadro">
                 <small>IVA</small>
                 <Plata valor={iva} apagado />
@@ -216,11 +168,7 @@ export function TarjetaPedido({
                 <Plata valor={pedido.totalFacturaConIva} grande />
               </div>
             </div>
-
-            {children}
           </div>
-
-          {costado && <div className="pedido-card-costado">{costado}</div>}
         </div>
       )}
     </div>

@@ -159,7 +159,8 @@ interface Props {
   /** Cuántas unidades lleva cada producto. */
   cantidadDe: (id: string) => number
   onCambiarCantidad: (p: ProductoDeCatalogo, delta: number) => void
-  onVerFotos: (p: ProductoDeCatalogo) => void
+  /** Abre la ficha completa del tractor, con sus fotos. */
+  onVerDetalle: (p: ProductoDeCatalogo) => void
   cargando?: boolean
 }
 
@@ -167,7 +168,7 @@ export function CatalogoTractores({
   productos,
   cantidadDe,
   onCambiarCantidad,
-  onVerFotos,
+  onVerDetalle,
   cargando,
 }: Props) {
   const [texto, setTexto] = useState('')
@@ -227,42 +228,42 @@ export function CatalogoTractores({
 
   return (
     <div className="catalogo-lista">
+      {/* El buscador y los filtros en una sola fila: el espacio es para los tractores. */}
       <div className="catalogo-barra">
         <input
-          className="input"
-          placeholder="Buscar por modelo, código, marca, línea o gama…"
+          className="input catalogo-buscar"
+          placeholder="Buscar modelo, código, marca, línea o gama…"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
         />
+        <div className="filtros">
+          {FACETAS.map(({ clave, rotulo }) => {
+            const valores = valoresDe(productos, clave)
+            if (valores.length < 2) return null
+            const marcados = elegidos[clave]
+            return (
+              <FiltroDesplegable
+                key={clave}
+                rotulo={rotulo}
+                valores={valores}
+                marcados={marcados}
+                abierto={abierto === clave}
+                onAbrir={() => setAbierto((v) => (v === clave ? null : clave))}
+                onCerrar={cerrar}
+                cuantosCon={(v) => cuantosCon(clave, v)}
+                onAlternar={(v) => alternar(clave, v)}
+                onLimpiar={() => setElegidos((v) => ({ ...v, [clave]: [] }))}
+              />
+            )
+          })}
+        </div>
+        <span className="catalogo-cuenta">
+          {visibles.length} de {productos.length}
+        </span>
       </div>
 
-      {/* Un desplegable por característica. Todas las etiquetas a la vez eran cuatro renglones de
-          chips —veinte potencias distintas— que ocupaban más que el catálogo que venían a filtrar.
-          Acá cada lista se abre sólo si se la pide. */}
-      <div className="filtros">
-        {FACETAS.map(({ clave, rotulo }) => {
-          const valores = valoresDe(productos, clave)
-          if (valores.length < 2) return null
-          const marcados = elegidos[clave]
-          return (
-            <FiltroDesplegable
-              key={clave}
-              rotulo={rotulo}
-              valores={valores}
-              marcados={marcados}
-              abierto={abierto === clave}
-              onAbrir={() => setAbierto((v) => (v === clave ? null : clave))}
-              onCerrar={cerrar}
-              cuantosCon={(v) => cuantosCon(clave, v)}
-              onAlternar={(v) => alternar(clave, v)}
-              onLimpiar={() => setElegidos((v) => ({ ...v, [clave]: [] }))}
-            />
-          )
-        })}
-      </div>
-
-      {/* Lo que está filtrado, junto y en un solo lugar: con los filtros cerrados, ésta es la única
-          forma de saber por qué la lista muestra tres modelos y no veintiuno. */}
+      {/* Lo que está filtrado, junto y en un solo lugar: con los filtros cerrados, es la única forma
+          de saber por qué se ven tres modelos y no veintiuno. */}
       {cuantosFiltros > 0 && (
         <div className="filtros-puestos">
           {FACETAS.map(({ clave, rotulo }) =>
@@ -290,67 +291,48 @@ export function CatalogoTractores({
         </div>
       )}
 
-      <div className="catalogo-cuenta">
-        {visibles.length} de {productos.length} modelos
-      </div>
-
-      <div className="tractores">
+      {/* Tarjetas chicas: veinte modelos se ven de una vez. Lo que no hace falta para elegir —la
+          ficha completa y las fotos— está en el detalle, que se abre aparte. */}
+      <div className="tractores-grilla">
         {visibles.map((p) => {
           const q = cantidadDe(p.id)
+          const datos = [
+            p.traccion && `Tracción ${p.traccion.toLowerCase()}`,
+            p.potenciaKw != null && `${p.potenciaKw} kW`,
+            p.cilindrada != null && `${p.cilindrada} cm³`,
+          ].filter(Boolean)
           return (
-            <div key={p.id} className={`tractor${q > 0 ? ' tractor--elegido' : ''}`}>
-              <div className="tractor-datos">
-                <span className="tractor-nom">
+            <div key={p.id} className={`tractor-tarjeta${q > 0 ? ' tractor-tarjeta--elegido' : ''}`}>
+              <div className="tractor-tarjeta-head">
+                <span className="tractor-tarjeta-nom">
                   {p.modelo || p.nombre}
                   {p.codigo && <small>{p.codigo}</small>}
                 </span>
-                <div className="tractor-chips">
-                  {p.marca && <span className="chip chip--gris">{p.marca}</span>}
-                  {p.linea && <span className="chip chip--gris">{p.linea}</span>}
-                  {p.gama && <span className="chip chip--gris">{p.gama}</span>}
-                  {p.traccion && <span className="chip chip--gris">{p.traccion}</span>}
-                  {p.potenciaKw != null && (
-                    <span className="chip chip--gris">{p.potenciaKw} kW</span>
-                  )}
-                  {p.cilindrada != null && (
-                    <span className="chip chip--gris">{p.cilindrada} cm³</span>
-                  )}
-                  {p.rodado && <span className="chip chip--gris">Rodado {p.rodado}</span>}
-                </div>
-              </div>
-
-              <span className="tractor-precio">
-                {aMoneda(p.precio)}
-                <small>+ IVA {p.iva}%</small>
-              </span>
-
-              <span className="tractor-acciones">
                 <button
                   type="button"
-                  className="btn btn--texto btn--chico"
-                  disabled={p.imagenes.length === 0}
-                  title={p.imagenes.length === 0 ? 'Sin fotos cargadas' : 'Ver las fotos'}
-                  onClick={() => onVerFotos(p)}
+                  className="tractor-tarjeta-info"
+                  title="Ver el detalle y las fotos"
+                  aria-label={`Ver el detalle de ${p.modelo || p.nombre}`}
+                  onClick={() => onVerDetalle(p)}
                 >
-                  <i className="fa-solid fa-image" aria-hidden="true" />
-                  {p.imagenes.length > 0 && ` ${p.imagenes.length}`}
+                  <i className="fa-solid fa-circle-info" aria-hidden="true" />
                 </button>
-
+              </div>
+              <span className="tractor-tarjeta-datos">
+                {[p.marca, ...datos].filter(Boolean).join(' · ') || 'Sin ficha técnica'}
+              </span>
+              <div className="tractor-tarjeta-pie">
+                <span className="tractor-precio">
+                  {aMoneda(p.precio)}
+                  <small>+ IVA {p.iva}%</small>
+                </span>
                 {q > 0 ? (
                   <span className="contador">
-                    <button
-                      type="button"
-                      aria-label="Uno menos"
-                      onClick={() => onCambiarCantidad(p, -1)}
-                    >
+                    <button type="button" aria-label="Uno menos" onClick={() => onCambiarCantidad(p, -1)}>
                       −
                     </button>
                     <b>{q}</b>
-                    <button
-                      type="button"
-                      aria-label="Uno más"
-                      onClick={() => onCambiarCantidad(p, 1)}
-                    >
+                    <button type="button" aria-label="Uno más" onClick={() => onCambiarCantidad(p, 1)}>
                       +
                     </button>
                   </span>
@@ -360,21 +342,18 @@ export function CatalogoTractores({
                     className="btn btn--borde btn--chico"
                     onClick={() => onCambiarCantidad(p, 1)}
                   >
-                    Agregar
+                    <i className="fa-solid fa-plus" aria-hidden="true" /> Agregar
                   </button>
                 )}
-              </span>
+              </div>
             </div>
           )
         })}
 
         {visibles.length === 0 && !cargando && (
           <div className="aviso aviso--neutro">
-            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-            <span>
-              Ningún tractor coincide con lo que estás buscando.
-              {cuantosFiltros > 0 && ' Probá sacando algún filtro.'}
-            </span>
+            <i className="fa-solid fa-filter-circle-xmark" aria-hidden="true" />
+            <span>Ningún modelo coincide con lo que buscaste.</span>
           </div>
         )}
       </div>

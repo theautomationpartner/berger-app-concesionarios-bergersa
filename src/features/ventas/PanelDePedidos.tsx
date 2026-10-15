@@ -19,7 +19,8 @@ import { tonoDeEstado } from './TarjetaPedido'
 const ORDEN: { estado: string; rotulo: string; icono: string }[] = [
   { estado: ESTADO_PEDIDO.CARGADA, rotulo: 'Esperando respuesta', icono: 'fa-clock' },
   { estado: ESTADO_PEDIDO.APROBADO, rotulo: 'Aprobados', icono: 'fa-circle-check' },
-  { estado: ESTADO_PEDIDO.ASIGNADO, rotulo: 'Con inventario', icono: 'fa-warehouse' },
+  { estado: ESTADO_PEDIDO.ASIGNADO_PARCIAL, rotulo: 'Asignación parcial', icono: 'fa-circle-half-stroke' },
+  { estado: ESTADO_PEDIDO.ASIGNADO, rotulo: 'Asignación completa', icono: 'fa-warehouse' },
   { estado: ESTADO_PEDIDO.A_FABRICA, rotulo: 'Pedidos a fábrica', icono: 'fa-industry' },
   { estado: ESTADO_PEDIDO.RECHAZADO, rotulo: 'Rechazados', icono: 'fa-circle-xmark' },
 ]
