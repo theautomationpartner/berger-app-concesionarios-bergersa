@@ -32,6 +32,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/monday-api/, '/v2'),
       },
+      '/monday-file': {
+        target: 'https://api.monday.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/monday-file/, '/v2/file'),
+      },
       /*
        * La consulta a ARCA. En producción la hace `api/arca.ts`, que acá no corre —Vite no
        * ejecuta las funciones de `api/`—, así que en desarrollo se va directo al servicio. La

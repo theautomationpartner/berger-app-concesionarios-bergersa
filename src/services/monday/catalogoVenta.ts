@@ -6,7 +6,12 @@
  * para calcular, y si alguien los cambia en el tablero el pedido siguiente ya sale con los nuevos.
  */
 import type { DescuentoConfigurado } from '@/lib/precios'
-import { COL_CATALOGO, COL_CONFIG, CONFIG_DESCUENTO_CONTADO } from './columns'
+import {
+  COL_CATALOGO,
+  COL_CONFIG,
+  CONFIG_DESCUENTO_CONTADO,
+  CONFIG_OPERATORIA_ESPECIAL,
+} from './columns'
 import { aNumeroEspejo, porId, texto, type ColumnaCruda } from './parse'
 import { mondayApi } from './sdk'
 
@@ -102,16 +107,39 @@ export async function catalogoDeVenta(): Promise<ProductoDeCatalogo[]> {
  * tienen que poder hacerse en monday un martes a la tarde, sin tocar la app.
  */
 export async function descuentosDeContado(): Promise<DescuentoConfigurado[]> {
+  return (await configuracionDeContado()).descuentos
+}
+
+/**
+ * La Operatoria Especial: un cuarto descuento que el concesionario tipea, entre 0 y el tope que
+ * BERGER pone en ⚙️Configuración. Va en la cascada en el lugar que diga su columna de orden.
+ * Sin fila configurada (`null`), la casilla no se ofrece.
+ */
+export interface OperatoriaEspecial {
+  orden: number
+  maximo: number
+}
+
+/** Los descuentos de contado y la Operatoria Especial, en una sola lectura del tablero. */
+export async function configuracionDeContado(): Promise<{
+  descuentos: DescuentoConfigurado[]
+  especial: OperatoriaEspecial | null
+}> {
   const r = await mondayApi<{
     boards: { items_page: { items: { id: string; column_values: ColumnaCruda[] }[] } }[]
   }>('configuracionDeVenta', {
     columnas: [COL_CONFIG.que, COL_CONFIG.orden, COL_CONFIG.porcentaje],
     limite: 100,
   })
+  const filas = (r.boards?.[0]?.items_page.items ?? []).map((i) => porId(i.column_values))
 
-  return (
-    (r.boards?.[0]?.items_page.items ?? [])
-      .map((i) => porId(i.column_values))
+  const fila = filas.find((c) => texto(c[COL_CONFIG.que]) === CONFIG_OPERATORIA_ESPECIAL)
+  const maximo = fila ? (aNumeroEspejo(texto(fila[COL_CONFIG.porcentaje])) ?? 0) : 0
+  const especial =
+    fila && maximo > 0 ? { orden: Number(texto(fila[COL_CONFIG.orden])) || 4, maximo } : null
+
+  const descuentos = (
+    filas
       .filter((c) => texto(c[COL_CONFIG.que]) === CONFIG_DESCUENTO_CONTADO)
       .map((c) => ({
         orden: Number(texto(c[COL_CONFIG.orden])) || 0,
@@ -121,4 +149,5 @@ export async function descuentosDeContado(): Promise<DescuentoConfigurado[]> {
       .filter((d) => d.porcentaje > 0)
       .sort((a, b) => (a.orden || 99) - (b.orden || 99))
   )
+  return { descuentos, especial }
 }

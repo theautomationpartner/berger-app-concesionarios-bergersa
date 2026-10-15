@@ -9,7 +9,7 @@
  */
 import type { ReactNode } from 'react'
 import { Plata } from '@/components/ui/Plata'
-import { ESTADO_PEDIDO, TIPO_PEDIDO, TIPO_VENTA } from '@/services/monday/columns'
+import { ESTADO_PEDIDO, PEDIDO_PARA, POLITICA_CONTADO, TIPO_PEDIDO } from '@/services/monday/columns'
 import type { PedidoLeido, UnidadLeida } from '@/services/monday/seguimientoPedidos'
 
 /** El color del estado. Es lo primero que se mira, y conviene no tener que leerlo para saberlo. */
@@ -31,13 +31,12 @@ export function tonoDeEstado(estado: string): string {
 }
 
 /**
- * A quién le factura BERGER: al cliente final en la venta directa; al concesionario en la
- * indirecta y en la compra de stock.
+ * A quién le factura BERGER: al cliente final en la venta directa; al concesionario en la compra
+ * de stock. En concesión no se factura.
  */
 export function aQuienSeLeFactura(pedido: PedidoLeido): string {
-  if (pedido.tipoPedido === TIPO_PEDIDO.TERCEROS && pedido.tipoVenta === TIPO_VENTA.DIRECTA) {
-    return pedido.terceroNombre || 'el cliente final'
-  }
+  if (pedido.tipoPedido === TIPO_PEDIDO.CONCESION) return 'No se factura (concesión)'
+  if (pedido.pedidoPara === PEDIDO_PARA.DIRECTA) return pedido.terceroNombre || 'el cliente final'
   return pedido.cuentaNombre || 'el concesionario'
 }
 
@@ -77,6 +76,12 @@ export function TarjetaPedido({ pedido, unidades, abierto = false, onAbrir, chil
             {pedido.estado === ESTADO_PEDIDO.ASIGNADO_PARCIAL && (
               <span className="chip chip--teal">{pedido.porcentajeAsignacion}% con tractor</span>
             )}
+            {pedido.tipoPedido === TIPO_PEDIDO.CONCESION && (
+              <span className="chip chip--violeta">En concesión</span>
+            )}
+            {pedido.politicaContado === POLITICA_CONTADO.ESPECIAL && (
+              <span className="chip chip--ambar">Operatoria especial</span>
+            )}
             {pedido.fechaSolicitud && (
               <span className="pedido-card-fecha">{fecha(pedido.fechaSolicitud)}</span>
             )}
@@ -106,9 +111,22 @@ export function TarjetaPedido({ pedido, unidades, abierto = false, onAbrir, chil
               <div>
                 <dt>Tipo</dt>
                 <dd>
-                  {pedido.tipoPedido}
-                  {pedido.tipoVenta ? ` · ${pedido.tipoVenta}` : ''}
+                  {[pedido.tipoPedido, pedido.pedidoPara].filter(Boolean).join(' · ') || '—'}
                 </dd>
+              </div>
+              {pedido.tipoFactura && (
+                <div>
+                  <dt>Factura</dt>
+                  <dd>{pedido.tipoFactura}</dd>
+                </div>
+              )}
+              {pedido.politicaContado && (
+                <div>
+                  <dt>Política contado</dt>
+                  <dd>{pedido.politicaContado}</dd>
+                </div>
+              )}
+              <div>
               </div>
               <div>
                 <dt>Se le factura a</dt>
@@ -168,6 +186,20 @@ export function TarjetaPedido({ pedido, unidades, abierto = false, onAbrir, chil
                 <Plata valor={pedido.totalFacturaConIva} grande />
               </div>
             </div>
+
+            {/* La venta directa factura al cliente final al precio que puso el concesionario. */}
+            {pedido.pedidoPara === PEDIDO_PARA.DIRECTA && pedido.totalClienteFinal > 0 && (
+              <div className="totales-pedido totales-pedido--dos">
+                <div className="total-cuadro">
+                  <small>Factura al cliente final s/IVA</small>
+                  <Plata valor={pedido.totalClienteFinal} />
+                </div>
+                <div className="total-cuadro">
+                  <small>Tu comisión</small>
+                  <Plata valor={pedido.totalComision} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

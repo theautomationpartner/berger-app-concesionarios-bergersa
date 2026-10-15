@@ -1,9 +1,10 @@
 /**
  * De qué concesionario es quien está cargando.
  *
- * Cada concesionario tiene en monday un equipo con el MISMO nombre que su cuenta del CRM ("BRUNO
- * MAQUINARIAS S.R.L." es la cuenta y es el equipo). Por eso no hace falta preguntarlo: el servidor
- * manda, al ingresar, los equipos de monday del usuario, y acá se cruzan con las cuentas.
+ * Cada cuenta de 🌐Cuentas con categoría Concesionario dice en "✋Concesionario NOMBRE TEAM" cómo se
+ * llama su equipo de monday. Por eso no hace falta preguntarlo: el servidor manda, al ingresar, los
+ * equipos de monday del usuario, y acá se cruzan con esa columna. Si una cuenta todavía no la tiene
+ * cargada, se compara con el nombre de la cuenta, que es como se armaron los equipos.
  *
  * - Un concesionario ve sólo la cuenta de su equipo, ya elegida: cargar a nombre de otro no es algo
  *   que tenga que poder hacer.
@@ -26,6 +27,9 @@ export interface EquipoMonday {
   nombre: string
 }
 
+/** El nombre de equipo con que se busca una cuenta: el de su columna, o su propio nombre. */
+export const equipoDeLaCuenta = (c: CuentaCrm): string => c.equipoNombre?.trim() || c.nombre
+
 /** Un concesionario que se puede elegir, con el equipo de monday que firma sus pedidos. */
 export interface ConcesionarioElegible {
   cuenta: CuentaCrm
@@ -44,7 +48,10 @@ export function concesionariosElegibles(
   const porNombre = new Map(equipos.map((e) => [normalizarNombre(e.nombre), e.id]))
   return cuentas
     .filter(esConcesionario)
-    .filter((c) => esAdministracion || porNombre.has(normalizarNombre(c.nombre)))
-    .map((cuenta) => ({ cuenta, equipoId: porNombre.get(normalizarNombre(cuenta.nombre)) ?? '' }))
+    .filter((c) => esAdministracion || porNombre.has(normalizarNombre(equipoDeLaCuenta(c))))
+    .map((cuenta) => ({
+      cuenta,
+      equipoId: porNombre.get(normalizarNombre(equipoDeLaCuenta(cuenta))) ?? '',
+    }))
     .sort((a, b) => a.cuenta.nombre.localeCompare(b.cuenta.nombre, 'es'))
 }

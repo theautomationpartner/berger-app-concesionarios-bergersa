@@ -27,9 +27,11 @@ interface Props {
   conCredito?: boolean
   /** Para poder sacarla y elegir otra. */
   onQuitar?: () => void
+  /** Qué dice el botón de sacarla. "Cambiar" para el concesionario; "Quitar" para un cliente final. */
+  textoQuitar?: string
 }
 
-export function FichaCuenta({ cuenta, rotulo, conCredito, onQuitar }: Props) {
+export function FichaCuenta({ cuenta, rotulo, conCredito, onQuitar, textoQuitar = 'Cambiar' }: Props) {
   const asignado = cuenta.creditoAsignado ?? 0
   const usado = cuenta.creditoUtilizado ?? 0
   const disponible = asignado - usado
@@ -43,8 +45,13 @@ export function FichaCuenta({ cuenta, rotulo, conCredito, onQuitar }: Props) {
       <div className="ficha-head">
         <span className="ficha-rotulo">{rotulo}</span>
         {onQuitar && (
-          <button type="button" className="btn btn--texto btn--chico" onClick={onQuitar}>
-            Cambiar
+          <button
+            type="button"
+            className={`btn btn--texto btn--chico${textoQuitar === 'Quitar' ? ' btn--quitar' : ''}`}
+            onClick={onQuitar}
+          >
+            {textoQuitar === 'Quitar' && <i className="fa-solid fa-xmark" aria-hidden="true" />}{' '}
+            {textoQuitar}
           </button>
         )}
       </div>

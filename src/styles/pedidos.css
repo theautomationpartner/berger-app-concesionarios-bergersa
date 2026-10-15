@@ -1681,3 +1681,186 @@ b.rojo {
 .panel-pedidos .estad-cifra {
   padding: 8px 12px;
 }
+
+/* =====================================================================
+   CREAR PEDIDO (16/10): tipo de pedido en botones, operatoria especial y
+   el precio al cliente final de la venta directa.
+   ===================================================================== */
+
+/* Dos o tres opciones a la vista, sin abrir nada. */
+.segmentos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  align-self: flex-start;
+}
+.segmento {
+  padding: 8px 18px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-mid);
+  cursor: pointer;
+}
+.segmento:last-child {
+  border-right: 0;
+}
+.segmento:hover:not(:disabled) {
+  background: var(--tint-neutral);
+}
+.segmento--si {
+  background: var(--primary-blue);
+  color: #fff;
+}
+.segmento--si:hover:not(:disabled) {
+  background: var(--primary-blue);
+}
+.segmento:disabled {
+  color: var(--text-gray);
+  background: var(--tint-neutral);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.input--chico {
+  height: 32px;
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+
+/* La casilla de la Operatoria Especial y su porcentaje. */
+.especial {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.especial-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.especial-campo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-gray);
+}
+.especial-input {
+  width: 70px;
+  text-align: right;
+}
+.descuento--especial {
+  border-color: #f5c46b;
+  background: #fff8e8;
+}
+
+/* El precio al cliente final, por modelo. */
+.precios-cf {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--tint-neutral);
+}
+.precios-cf-tabla {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 6px 12px;
+  align-items: center;
+}
+.precios-cf-fila {
+  display: contents;
+}
+.precios-cf-cab {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-gray);
+}
+.precios-cf-mod {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.precios-cf-mod b {
+  font-size: 12.5px;
+  color: var(--text-dark);
+  overflow-wrap: anywhere;
+}
+.precios-cf-mod small {
+  font-size: 11px;
+  color: var(--text-gray);
+}
+.precios-cf-num {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-mid);
+}
+.precios-cf-in {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.precios-cf-in small {
+  font-size: 11px;
+  color: var(--green-dark);
+}
+.precios-cf-in small.campo-ayuda--falta {
+  color: var(--berger-red);
+}
+.cp-renglon-cf {
+  color: var(--green-dark) !important;
+}
+
+.totales-pedido--dos {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+}
+.linea-credito .rojo {
+  color: var(--berger-red);
+  font-weight: 700;
+}
+
+/* Quitar un cliente final elegido. */
+.btn--quitar {
+  color: var(--berger-red);
+}
+.ficha--fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .precios-cf-tabla {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .precios-cf-cab:nth-child(2),
+  .precios-cf-cab:nth-child(3),
+  .precios-cf-num {
+    display: none;
+  }
+}
+
+/* Los montos del costado no se parten en dos renglones. */
+.cp-totales .pedido-linea b,
+.cp-totales .pedido-linea > span:last-child {
+  white-space: nowrap;
+}

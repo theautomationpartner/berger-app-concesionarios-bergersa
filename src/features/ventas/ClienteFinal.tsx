@@ -147,6 +147,8 @@ export function ClienteFinal({
         estado: '',
         creditoAsignado: null,
         creditoUtilizado: null,
+        equipoNombre: '',
+        concesionLimite: 0,
         concesionarioIds: [],
         contactoIds: [],
       })
@@ -178,16 +180,21 @@ export function ClienteFinal({
         )}
       </div>
 
+      {/* Cada uno con su "Quitar": si se eligió mal, se saca y se elige otro. Uno que no está en la
+          lista leída (porque se recargó) igual se muestra, para poder sacarlo. */}
       {elegidos.map((c) => {
         const ficha = cuentas.find((x) => x.id === c.id)
+        const quitar = () => onCambiar(elegidos.filter((x) => x.id !== c.id))
         return ficha ? (
-          <FichaCuenta
-            key={c.id}
-            cuenta={ficha}
-            rotulo=""
-            onQuitar={() => onCambiar(elegidos.filter((x) => x.id !== c.id))}
-          />
-        ) : null
+          <FichaCuenta key={c.id} cuenta={ficha} rotulo="" onQuitar={quitar} textoQuitar="Quitar" />
+        ) : (
+          <div key={c.id} className="ficha ficha--fila">
+            <span className="ficha-nombre">{c.nombre}</span>
+            <button type="button" className="btn btn--texto btn--chico btn--quitar" onClick={quitar}>
+              <i className="fa-solid fa-xmark" aria-hidden="true" /> Quitar
+            </button>
+          </div>
+        )
       })}
 
       {!creando ? (

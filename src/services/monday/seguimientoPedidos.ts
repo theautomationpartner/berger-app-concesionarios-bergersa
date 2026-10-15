@@ -69,8 +69,14 @@ export interface PedidoLeido {
   id: string
   nombre: string
   estado: string
+  /** COMPRA o CONCESIÓN. */
   tipoPedido: string
-  tipoVenta: string
+  /** COMPRA STOCK o VENTA DIRECTA. */
+  pedidoPara: string
+  /** INMEDIATA o DIFERIDA. Vacío en concesión. */
+  tipoFactura: string
+  /** Política Estándar u Operatoria Especial, si pagó contado. */
+  politicaContado: string
   /** Cómo se paga: la condición de venta o el concepto, según el tipo. */
   pago: string
   banco: string
@@ -90,6 +96,9 @@ export interface PedidoLeido {
   totalListaSinIva: number
   totalFacturaSinIva: number
   totalFacturaConIva: number
+  /** VENTA DIRECTA: lo que BERGER le factura al cliente final, y la comisión del concesionario. */
+  totalClienteFinal: number
+  totalComision: number
   /** Qué porcentaje de las unidades ya tiene tractor (0 a 100), según lo dejó Asignar. */
   porcentajeAsignacion: number
   renglones: RenglonLeido[]
@@ -113,7 +122,11 @@ export interface UnidadLeida {
 const COLUMNAS_PEDIDO = [
   COL_PEDIDO.estado,
   COL_PEDIDO.tipoPedido,
-  COL_PEDIDO.tipoVenta,
+  COL_PEDIDO.pedidoPara,
+  COL_PEDIDO.tipoFactura,
+  COL_PEDIDO.politicaContado,
+  COL_PEDIDO.totalClienteFinal,
+  COL_PEDIDO.totalComision,
   COL_PEDIDO.condicionVenta,
   COL_PEDIDO.conceptoPago,
   COL_PEDIDO.banco,
@@ -164,7 +177,9 @@ export async function pedidosCargados(limite = 200): Promise<PedidoLeido[]> {
       nombre: it.name,
       estado: texto(c[COL_PEDIDO.estado]),
       tipoPedido,
-      tipoVenta: texto(c[COL_PEDIDO.tipoVenta]),
+      pedidoPara: texto(c[COL_PEDIDO.pedidoPara]),
+      tipoFactura: texto(c[COL_PEDIDO.tipoFactura]),
+      politicaContado: texto(c[COL_PEDIDO.politicaContado]),
       /* Según el tipo de pedido, la forma de pago vive en una columna o en la otra. */
       pago: texto(c[COL_PEDIDO.condicionVenta]) || texto(c[COL_PEDIDO.conceptoPago]),
       banco: texto(c[COL_PEDIDO.banco]),
@@ -183,6 +198,8 @@ export async function pedidosCargados(limite = 200): Promise<PedidoLeido[]> {
       totalListaSinIva: numero(c[COL_PEDIDO.totalListaSinIva]),
       totalFacturaSinIva: numero(c[COL_PEDIDO.totalFacturaSinIva]),
       totalFacturaConIva: numero(c[COL_PEDIDO.totalFacturaConIva]),
+      totalClienteFinal: numero(c[COL_PEDIDO.totalClienteFinal]),
+      totalComision: numero(c[COL_PEDIDO.totalComision]),
       porcentajeAsignacion: numero(c[COL_PEDIDO.porcentajeAsignacion]),
       renglones: (it.subitems ?? []).map((s) => {
         const sc = porId(s.column_values)

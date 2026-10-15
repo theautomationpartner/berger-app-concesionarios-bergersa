@@ -44,6 +44,10 @@ export interface CuentaCrm {
   /** La línea de crédito que BERGER le asignó, y cuánto lleva usado. */
   creditoAsignado: number | null
   creditoUtilizado: number | null
+  /** El nombre del equipo de monday del concesionario, tal como está en la cuenta. */
+  equipoNombre: string
+  /** Cuántos pedidos en concesión puede tener. 0: ninguno. */
+  concesionLimite: number
   concesionarioIds: string[]
   /** Ids de los contactos conectados. */
   contactoIds: string[]
@@ -89,6 +93,8 @@ const COLUMNAS_CUENTA = [
   COL_CUENTA.estado,
   COL_CUENTA_VENTA.creditoAsignado,
   COL_CUENTA_VENTA.creditoUtilizado,
+  COL_CUENTA_VENTA.equipoNombre,
+  COL_CUENTA_VENTA.concesionLimite,
   COL_CUENTA.concesionario,
   COL_CUENTA.contactos,
 ]
@@ -122,6 +128,8 @@ export async function cuentasDelCrm(): Promise<CuentaCrm[]> {
         estado: texto(c[COL_CUENTA.estado]),
         creditoAsignado: aNumeroEspejo(texto(c[COL_CUENTA_VENTA.creditoAsignado])),
         creditoUtilizado: aNumeroEspejo(texto(c[COL_CUENTA_VENTA.creditoUtilizado])),
+        equipoNombre: texto(c[COL_CUENTA_VENTA.equipoNombre]),
+        concesionLimite: aNumeroEspejo(texto(c[COL_CUENTA_VENTA.concesionLimite])) ?? 0,
         concesionarioIds: conectados(c[COL_CUENTA.concesionario]),
         contactoIds: conectados(c[COL_CUENTA.contactos]),
       }

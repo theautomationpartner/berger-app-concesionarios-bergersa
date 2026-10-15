@@ -8,29 +8,51 @@
  *
  * El concesionario no se elige: sale del equipo de monday del usuario (`lib/concesionario`). Sólo
  * Administración puede cargar a nombre de cualquiera.
+ *
+ * Tres preguntas arman el pedido: Tipo de pedido (COMPRA o CONCESIÓN), Pedido para (COMPRA STOCK o
+ * VENTA DIRECTA) y, en compra, el Tipo de factura. En concesión no hay pago ni factura: en su lugar
+ * se adjunta el contrato. En venta directa el concesionario pone a cuánto le vende cada tractor al
+ * cliente final, entre lo que BERGER le factura y el precio de lista.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Desplegable } from '@/components/ui/Desplegable'
+import { ZonaArchivo } from '@/components/ui/ZonaArchivo'
 import { useSalidaProtegida } from '@/hooks/useSalidaProtegida'
 import { concesionariosElegibles, type EquipoMonday } from '@/lib/concesionario'
-import { importe as aMoneda } from '@/lib/format'
+import { aNumero, importe as aMoneda, pesoArchivo } from '@/lib/format'
 import { descuentoTotalEnPorcentaje, totalesDePedido, type DescuentoConfigurado } from '@/lib/precios'
 import {
   catalogoDeVenta,
-  descuentosDeContado,
+  configuracionDeContado,
+  type OperatoriaEspecial,
   type ProductoDeCatalogo,
 } from '@/services/monday/catalogoVenta'
-import { esContado, TIPO_PEDIDO, TIPO_VENTA } from '@/services/monday/columns'
+import {
+  esContado,
+  PEDIDO_PARA,
+  POLITICA_CONTADO,
+  TIPO_FACTURA,
+  TIPO_PEDIDO,
+} from '@/services/monday/columns'
 import { cuentasDelCrm, etiquetasDelCrm, type CuentaCrm } from '@/services/monday/crm'
 import {
   calcularRenglones,
+  concesionesDe,
   crearPedido,
+  descuentosDelPedido,
+  esConcesion,
+  esVentaDirecta,
   faltaParaElPedido,
+  lineaDeCredito,
   pagoDelPedido,
+  problemaClienteFinal,
+  rangoClienteFinal,
+  totalesVentaDirecta,
   type AltaPedido,
   type ResultadoPedido,
 } from '@/services/monday/pedidos'
 import { SinAcceso } from '@/services/monday/sdk'
+import { pedidosCargados, type PedidoLeido } from '@/services/monday/seguimientoPedidos'
 import { CatalogoTractores } from '@/features/ventas/CatalogoTractores'
 import { ClienteFinal } from '@/features/ventas/ClienteFinal'
 import { FichaCuenta, tonoDeCredito } from '@/features/ventas/FichaCuenta'
@@ -81,17 +103,25 @@ const BANCOS = [
 ]
 const PLAZOS = ['30 días', '60 días', '90 días', '120 días', '12 Cuotas', '24 Cuotas', 'A Convenir']
 
+/** El contrato: un PDF o una foto del papel firmado. */
+const ACEPTA_CONTRATO = '.pdf,.jpg,.jpeg,.png'
+
 const VACIO: AltaPedido = {
   cuentaId: '',
   cuentaNombre: '',
   equipoId: '',
-  tipoPedido: '',
-  tipoVenta: '',
+  /* Compra es lo que se pide casi siempre; concesión es la excepción. */
+  tipoPedido: TIPO_PEDIDO.COMPRA,
+  pedidoPara: '',
+  /* La factura inmediata es la regla: diferida se elige a propósito. */
+  tipoFactura: TIPO_FACTURA.INMEDIATA,
   clientes: [],
   condicionVenta: '',
   banco: '',
   plazo: '',
   conceptoPago: '',
+  descuentoEspecial: null,
+  preciosClienteFinal: {},
   renglones: [],
 }
 
@@ -113,15 +143,25 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
   const [cuentas, setCuentas] = useState<CuentaCrm[]>([])
   const [catalogo, setCatalogo] = useState<ProductoDeCatalogo[]>([])
   const [descuentos, setDescuentos] = useState<DescuentoConfigurado[]>([])
+  const [especial, setEspecial] = useState<OperatoriaEspecial | null>(null)
   const [condicionesFiscales, setCondicionesFiscales] = useState<string[]>([])
+  /** Los pedidos ya cargados: de ahí sale cuántas concesiones tiene abiertas. */
+  const [pedidos, setPedidos] = useState<PedidoLeido[]>([])
+  const [sinPedidos, setSinPedidos] = useState(false)
 
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
   const [listo, setListo] = useState<ResultadoPedido | null>(null)
+  /** Si al mandarlo la línea no alcanzaba: el aviso se repite en la pantalla de cargado. */
+  const [listoSinLinea, setListoSinLinea] = useState(false)
 
   const [datos, setDatos] = useState<AltaPedido>(VACIO)
+  const [contrato, setContrato] = useState<File | null>(null)
+  /** Lo que se está tipeando, tal cual: el número se lee de acá. */
+  const [textoEspecial, setTextoEspecial] = useState('')
+  const [textoPrecios, setTextoPrecios] = useState<Record<string, string>>({})
   const [detalle, setDetalle] = useState<ProductoDeCatalogo | null>(null)
   const [foto, setFoto] = useState(0)
 
@@ -129,16 +169,17 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
     setCargando(true)
     setError(null)
     try {
-      const [c, cat, ds, et] = await Promise.all([
+      const [c, cat, conf, et] = await Promise.all([
         cuentasDelCrm(),
         catalogoDeVenta(),
-        descuentosDeContado(),
+        configuracionDeContado(),
         etiquetasDelCrm(),
       ])
       setCuentas(c)
       setCondicionesFiscales(et.condicionFiscal)
       setCatalogo(cat.filter((p) => p.vigente))
-      setDescuentos(ds)
+      setDescuentos(conf.descuentos)
+      setEspecial(conf.especial)
     } catch (e) {
       setError(
         e instanceof SinAcceso
@@ -147,6 +188,14 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
       )
     } finally {
       setCargando(false)
+    }
+    /* Los pedidos sólo hacen falta para contar las concesiones: si no se pueden leer, se sigue
+       igual y la concesión queda bloqueada en vez de ofrecerse sin saber si hay lugar. */
+    try {
+      setPedidos(await pedidosCargados(500))
+      setSinPedidos(false)
+    } catch {
+      setSinPedidos(true)
     }
   }, [])
 
@@ -169,24 +218,58 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
   }, [elegibles, datos.cuentaId])
 
   const miConcesionario = cuentas.find((c) => c.id === datos.cuentaId) ?? null
-  const esTerceros = datos.tipoPedido === TIPO_PEDIDO.TERCEROS
-  const esDirecta = esTerceros && datos.tipoVenta === TIPO_VENTA.DIRECTA
+  const concesion = esConcesion(datos)
+  const directa = esVentaDirecta(datos)
   const pago = pagoDelPedido(datos)
   const contado = esContado(pago)
   /* "BANCO" aparece suelto y dentro de combinaciones: alcanza con que la condición lo mencione. */
-  const pideBanco = esTerceros && datos.condicionVenta.toUpperCase().includes('BANCO')
+  const pideBanco = directa && !concesion && datos.condicionVenta.toUpperCase().includes('BANCO')
+
+  /* La concesión sólo si el concesionario tiene tope y le queda lugar. */
+  const concesiones = useMemo(
+    () => concesionesDe(miConcesionario, pedidos),
+    [miConcesionario, pedidos],
+  )
+  const puedeConcesion = concesiones.puede && !sinPedidos
+
+  /* Si cambia el concesionario (Administración) y el nuevo no puede pedir en concesión, vuelve a
+     compra: un pedido no puede quedar en una opción que ya no se ofrece. */
+  useEffect(() => {
+    if (concesion && !cargando && !puedeConcesion) {
+      setDatos((d) => ({ ...d, tipoPedido: TIPO_PEDIDO.COMPRA }))
+    }
+  }, [concesion, cargando, puedeConcesion])
 
   const renglones = useMemo(
-    () => calcularRenglones(datos, descuentos, contado),
-    [datos, descuentos, contado],
+    () => calcularRenglones(datos, descuentos, especial),
+    [datos, descuentos, especial],
+  )
+  const efectivos = useMemo(
+    () => descuentosDelPedido(datos, descuentos, especial).descuentos,
+    [datos, descuentos, especial],
   )
   const totales = useMemo(() => totalesDePedido(renglones), [renglones])
-  const faltan = faltaParaElPedido(datos)
+  /* Sólo los precios al cliente que están dentro del rango: uno mal tipeado no se suma. */
+  const venta = useMemo(
+    () => totalesVentaDirecta(renglones.filter((r) => !problemaClienteFinal(r))),
+    [renglones],
+  )
+  const faltan = faltaParaElPedido(datos, renglones, { conContrato: Boolean(contrato), especial })
   const terceros = cuentas.filter((c) => datos.clientes.some((x) => x.id === c.id))
+  const credito = lineaDeCredito(miConcesionario, totales, concesion)
+
+  /* La Operatoria Especial: tildada, se tipea el porcentaje entre 0 y el tope de Configuración. */
+  const usaEspecial = datos.descuentoEspecial != null
+  const especialInvalido =
+    usaEspecial &&
+    especial != null &&
+    (aNumero(textoEspecial) == null ||
+      (aNumero(textoEspecial) ?? 0) < 0 ||
+      (aNumero(textoEspecial) ?? 0) > especial.maximo)
 
   /* Salir a mitad de camino pregunta antes: mientras se escribe en monday —el pedido son tres
      tableros— y con un pedido armado sin mandar, porque lo elegido vive sólo en esta pantalla. */
-  const armado = Boolean(datos.tipoPedido) || datos.renglones.length > 0
+  const armado = Boolean(datos.pedidoPara) || datos.renglones.length > 0 || Boolean(contrato)
   useSalidaProtegida(
     enviando
       ? 'Se está cargando el pedido en monday: el pedido, sus renglones y una unidad por tractor. Si salís ahora puede quedar cargado a medias, y no vas a ver qué faltó.'
@@ -219,19 +302,44 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
     })
   }
 
+  const cambiarPrecioClienteFinal = (productoId: string, texto: string) => {
+    setTextoPrecios((t) => ({ ...t, [productoId]: texto }))
+    const n = aNumero(texto)
+    setDatos((d) => {
+      const precios = { ...d.preciosClienteFinal }
+      if (n == null) delete precios[productoId]
+      else precios[productoId] = n
+      return { ...d, preciosClienteFinal: precios }
+    })
+  }
+
+  const cambiarEspecial = (texto: string) => {
+    setTextoEspecial(texto)
+    const n = aNumero(texto)
+    setDatos((d) => ({ ...d, descuentoEspecial: n ?? 0 }))
+  }
+
   const empezarOtro = () => {
     setListo(null)
+    setListoSinLinea(false)
     setErrorEnvio(null)
     setPaso(1)
+    setContrato(null)
+    setTextoEspecial('')
+    setTextoPrecios({})
     /* El concesionario queda: el próximo pedido casi siempre es del mismo. */
     setDatos({ ...VACIO, cuentaId: datos.cuentaId, cuentaNombre: datos.cuentaNombre, equipoId: datos.equipoId })
+    /* Uno nuevo en concesión cambia la cuenta de las que quedan. */
+    void recargar()
   }
 
   const mandar = async () => {
     setEnviando(true)
     setErrorEnvio(null)
     try {
-      setListo(await crearPedido({ ...datos, comercialId }, descuentos))
+      const r = await crearPedido({ ...datos, comercialId }, descuentos, especial, concesion ? contrato : null)
+      setListoSinLinea(credito.insuficiente)
+      setListo(r)
     } catch (e) {
       setErrorEnvio(mensaje(e))
     } finally {
@@ -239,12 +347,22 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
     }
   }
 
-  /* El crédito: cuánto hay y cuánto quedaría con este pedido. Se mira en todos los pasos. */
-  const asignado = miConcesionario?.creditoAsignado ?? 0
-  const disponible = asignado - (miConcesionario?.creditoUtilizado ?? 0)
-  const quedaria = disponible - totales.facturaConIva
   const usadoSiSeAprueba =
-    asignado > 0 ? Math.min(100, Math.round(((asignado - quedaria) / asignado) * 100)) : 0
+    credito.asignado > 0
+      ? Math.min(100, Math.round(((credito.asignado - credito.quedaria) / credito.asignado) * 100))
+      : 100
+
+  /** El aviso de línea insuficiente. No bloquea: el pedido se carga igual. */
+  const avisoSinLinea = (
+    <div className="aviso aviso--error">
+      <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+      <span>
+        <b>Tu línea de crédito no alcanza para este pedido.</b> Se va a registrar igual, pero BERGER
+        no lo va a poder aprobar hasta que regularices la línea: necesitás {aMoneda(credito.monto)} con
+        IVA y tenés {aMoneda(Math.max(0, credito.disponible))} disponibles.
+      </span>
+    </div>
+  )
 
   /* ============ El costado: el pedido que se va formando ============ */
   const resumen = (editable: boolean) => (
@@ -271,6 +389,9 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                   <small>
                     {aMoneda(r.precio.facturaSinIva)} c/u + IVA {p?.iva ?? 0}%
                   </small>
+                  {r.clienteFinal != null && !problemaClienteFinal(r) && (
+                    <small className="cp-renglon-cf">Al cliente: {aMoneda(r.clienteFinal)} c/u</small>
+                  )}
                 </span>
                 {editable && p ? (
                   <span className="contador contador--chico">
@@ -299,7 +420,10 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
         </div>
         {contado && totales.listaSinIva > totales.contadoSinIva && (
           <div className="pedido-linea pedido-linea--resta">
-            <span>Desc. contado ({descuentoTotalEnPorcentaje(descuentos)}%)</span>
+            <span>
+              Desc. contado ({descuentoTotalEnPorcentaje(efectivos)}%)
+              {usaEspecial && (datos.descuentoEspecial ?? 0) > 0 ? ' · con especial' : ''}
+            </span>
             <b>− {aMoneda(totales.listaSinIva - totales.contadoSinIva)}</b>
           </div>
         )}
@@ -308,29 +432,51 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
           <b>{aMoneda(totales.facturaConIva - totales.facturaSinIva)}</b>
         </div>
         <div className="pedido-linea pedido-linea--total">
-          <span>A facturar s/IVA</span>
+          <span>{concesion ? 'Valor s/IVA (no se factura)' : 'A facturar s/IVA'}</span>
           <span>{aMoneda(totales.facturaSinIva)}</span>
         </div>
         <div className="pedido-linea pedido-linea--suave">
           <span>Con IVA</span>
           <b>{aMoneda(totales.facturaConIva)}</b>
         </div>
+        {/* La venta directa factura al cliente final al precio que puso el concesionario. */}
+        {directa && venta.clienteFinal > 0 && (
+          <>
+            <div className="pedido-linea pedido-linea--total">
+              <span>Factura al cliente final s/IVA</span>
+              <span>{aMoneda(venta.clienteFinal)}</span>
+            </div>
+            <div className="pedido-linea pedido-linea--suave">
+              <span>Tu comisión</span>
+              <b>{aMoneda(venta.comision)}</b>
+            </div>
+          </>
+        )}
       </div>
 
       {/* El crédito, resumido: lo que importa mientras se arma es si entra o no. */}
       {miConcesionario && (
-        <div className={`linea-credito linea-credito--${tonoDeCredito(usadoSiSeAprueba)}`}>
-          {asignado > 0 ? (
+        <div
+          className={`linea-credito linea-credito--${concesion ? 'verde' : credito.insuficiente ? 'rojo' : tonoDeCredito(usadoSiSeAprueba)}`}
+        >
+          {concesion ? (
+            <span>
+              <i className="fa-solid fa-handshake" aria-hidden="true" /> En concesión: no usa línea
+              de crédito
+            </span>
+          ) : credito.asignado > 0 ? (
             <>
               <span>
-                Línea disponible <b>{aMoneda(disponible)}</b>
+                Línea disponible <b>{aMoneda(credito.disponible)}</b>
               </span>
               <span>
-                Con este pedido queda <b className={quedaria < 0 ? 'rojo' : undefined}>{aMoneda(quedaria)}</b>
+                Con este pedido queda{' '}
+                <b className={credito.quedaria < 0 ? 'rojo' : undefined}>{aMoneda(credito.quedaria)}</b>
               </span>
+              {credito.insuficiente && <span className="rojo">No alcanza: BERGER no podrá aprobarlo</span>}
             </>
           ) : (
-            <span>Sin línea de crédito asignada</span>
+            <span>Sin línea de crédito asignada{totales.unidades > 0 ? ': BERGER no podrá aprobarlo' : ''}</span>
           )}
         </div>
       )}
@@ -349,21 +495,45 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
             <h2 className="cp-exito-tit">¡Pedido cargado!</h2>
             <p className="cp-exito-det">
               <b>{listo.nombre}</b> quedó cargado con {listo.unidades} unidad
-              {listo.unidades === 1 ? '' : 'es'}. Ahora espera la aprobación de BERGER —comercial y
+              {listo.unidades === 1 ? '' : 'es'}
+              {concesion ? ', en concesión' : ''}. Ahora espera la aprobación de BERGER —comercial y
               financiera—, y te avisamos en Novedades cuando cambie.
             </p>
+            {/* El aviso de la línea va acá también: es lo último que lee antes de irse. */}
+            {listoSinLinea && (
+              <div className="aviso aviso--error">
+                <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                <span>
+                  <b>Atención:</b> tu línea de crédito no alcanza para este pedido. Quedó registrado,
+                  pero BERGER no lo va a poder aprobar hasta que regularices la línea.
+                </span>
+              </div>
+            )}
             <div className="cp-exito-cifras">
               <span>
-                <small>A facturar s/IVA</small>
+                <small>{concesion ? 'Valor s/IVA' : 'A facturar s/IVA'}</small>
                 <b>{aMoneda(listo.totales.facturaSinIva)}</b>
               </span>
+              {listo.ventaDirecta ? (
+                <>
+                  <span>
+                    <small>Al cliente final s/IVA</small>
+                    <b>{aMoneda(listo.ventaDirecta.clienteFinal)}</b>
+                  </span>
+                  <span>
+                    <small>Tu comisión</small>
+                    <b>{aMoneda(listo.ventaDirecta.comision)}</b>
+                  </span>
+                </>
+              ) : (
+                <span>
+                  <small>Con IVA</small>
+                  <b>{aMoneda(listo.totales.facturaConIva)}</b>
+                </span>
+              )}
               <span>
-                <small>Con IVA</small>
-                <b>{aMoneda(listo.totales.facturaConIva)}</b>
-              </span>
-              <span>
-                <small>Forma de pago</small>
-                <b>{pago || '—'}</b>
+                <small>{concesion ? 'Contrato' : 'Forma de pago'}</small>
+                <b>{concesion ? (listo.contratoAdjunto ? 'Adjunto' : 'Falta adjuntar') : pago || '—'}</b>
               </span>
             </div>
             {listo.advertencias.length > 0 && (
@@ -393,15 +563,41 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
     )
   }
 
+  const preciosOk = !directa || renglones.every((r) => !problemaClienteFinal(r))
   const puedeSeguir =
     !cargando &&
     ((paso === 1 &&
       Boolean(datos.cuentaId) &&
       Boolean(datos.tipoPedido) &&
-      (!esTerceros || Boolean(datos.tipoVenta)) &&
-      (!esDirecta || terceros.length > 0)) ||
+      Boolean(datos.pedidoPara) &&
+      (concesion ? Boolean(contrato) : Boolean(datos.tipoFactura)) &&
+      (!directa || terceros.length > 0)) ||
       (paso === 2 && datos.renglones.length > 0) ||
-      (paso === 3 && Boolean(pago)))
+      (paso === 3 && (concesion || Boolean(pago)) && !especialInvalido && preciosOk))
+
+  /** Un selector de dos o tres opciones, como botones: se ve todo sin abrir nada. */
+  const segmentos = (
+    valor: string,
+    opciones: { valor: string; rotulo: string; bloqueado?: boolean; titulo?: string }[],
+    onCambiar: (v: string) => void,
+  ) => (
+    <span className="segmentos" role="radiogroup">
+      {opciones.map((o) => (
+        <button
+          key={o.valor}
+          type="button"
+          role="radio"
+          aria-checked={valor === o.valor}
+          className={`segmento${valor === o.valor ? ' segmento--si' : ''}`}
+          disabled={o.bloqueado}
+          title={o.titulo}
+          onClick={() => onCambiar(o.valor)}
+        >
+          {o.rotulo}
+        </button>
+      ))}
+    </span>
+  )
 
   return (
     <div className="scroll">
@@ -418,7 +614,7 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                 className={`paso${i + 1 === paso ? ' paso--actual' : i + 1 < paso ? ' paso--hecho' : ''}`}
               >
                 <span className="paso-num">{i + 1 < paso ? '✓' : i + 1}</span>
-                <span className="paso-txt">{p}</span>
+                <span className="paso-txt">{i === 2 && concesion ? 'Condiciones' : p}</span>
               </li>
             ))}
           </ol>
@@ -495,57 +691,107 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                     )}
                   </div>
 
+                  {/* Lo primero: compra o concesión. Cambia todo lo que sigue. */}
                   <div className="campo">
                     <span className="campo-lbl">
                       Tipo de pedido <span className="campo-req">· obligatorio</span>
                     </span>
+                    {segmentos(
+                      datos.tipoPedido,
+                      [
+                        { valor: TIPO_PEDIDO.COMPRA, rotulo: 'Compra' },
+                        {
+                          valor: TIPO_PEDIDO.CONCESION,
+                          rotulo: 'Concesión',
+                          bloqueado: !puedeConcesion,
+                          titulo: !puedeConcesion ? 'No tenés lugar para pedidos en concesión' : undefined,
+                        },
+                      ],
+                      (v) =>
+                        setDatos({
+                          ...datos,
+                          tipoPedido: v,
+                          /* En concesión no hay pago: lo que se haya elegido no se arrastra. */
+                          ...(v === TIPO_PEDIDO.CONCESION
+                            ? { condicionVenta: '', banco: '', conceptoPago: '', plazo: '', descuentoEspecial: null }
+                            : {}),
+                        }),
+                    )}
+                    <span className="campo-ayuda">
+                      {miConcesionario && !sinPedidos
+                        ? concesiones.limite > 0
+                          ? `Concesión: ${concesiones.enUso} de ${concesiones.limite} pedidos en concesión en uso${concesiones.puede ? '.' : ' — llegaste al tope.'}`
+                          : 'Concesión: este concesionario no tiene pedidos en concesión habilitados.'
+                        : sinPedidos
+                          ? 'No se pudieron leer tus pedidos, así que la concesión queda bloqueada por ahora.'
+                          : 'En concesión el tractor se lleva sin pagarlo ni facturarlo.'}
+                    </span>
+                  </div>
+
+                  <div className="campo">
+                    <span className="campo-lbl">
+                      Pedido para <span className="campo-req">· obligatorio</span>
+                    </span>
                     <Desplegable
-                      valor={datos.tipoPedido}
-                      opciones={[TIPO_PEDIDO.STOCK, TIPO_PEDIDO.TERCEROS]}
+                      valor={datos.pedidoPara}
+                      opciones={[PEDIDO_PARA.STOCK, PEDIDO_PARA.DIRECTA]}
                       vacio="Elegir…"
                       onCambiar={(v) =>
                         setDatos({
                           ...datos,
-                          tipoPedido: v,
-                          tipoVenta: '',
-                          clientes: [],
+                          pedidoPara: v,
+                          clientes: v === PEDIDO_PARA.DIRECTA ? datos.clientes : [],
                           condicionVenta: '',
                           banco: '',
                           conceptoPago: '',
+                          descuentoEspecial: null,
                         })
                       }
                     />
                     <span className="campo-ayuda">
-                      Stock es para ustedes; terceros, para venderle a un cliente final.
+                      {datos.pedidoPara === PEDIDO_PARA.DIRECTA
+                        ? 'BERGER le factura directo al cliente final, al precio que vos pongas.'
+                        : datos.pedidoPara === PEDIDO_PARA.STOCK
+                          ? 'Para el stock de ustedes: BERGER les factura a ustedes.'
+                          : 'Stock es para ustedes; venta directa, para un cliente final.'}
                     </span>
                   </div>
 
-                  {esTerceros && (
+                  {/* La factura en compra; en concesión, en su lugar, el contrato. */}
+                  {concesion ? (
                     <div className="campo">
                       <span className="campo-lbl">
-                        Tipo de venta <span className="campo-req">· obligatorio</span>
+                        Contrato de concesión <span className="campo-req">· obligatorio</span>
                       </span>
-                      <Desplegable
-                        valor={datos.tipoVenta}
-                        opciones={[TIPO_VENTA.DIRECTA, TIPO_VENTA.INDIRECTA]}
-                        vacio="Elegir…"
-                        /* Pasar a indirecta borra el cliente final: deja de preguntarse. */
-                        onCambiar={(v) =>
-                          setDatos({ ...datos, tipoVenta: v, clientes: v === TIPO_VENTA.DIRECTA ? datos.clientes : [] })
-                        }
+                      <ZonaArchivo
+                        archivo={contrato}
+                        onElegir={setContrato}
+                        acepta={ACEPTA_CONTRATO}
+                        titulo="Arrastrá el contrato firmado o hacé clic para buscarlo"
                       />
                       <span className="campo-ayuda">
-                        {datos.tipoVenta === TIPO_VENTA.DIRECTA
-                          ? 'BERGER le factura directo al cliente final.'
-                          : datos.tipoVenta === TIPO_VENTA.INDIRECTA
-                            ? 'BERGER les factura a ustedes, y ustedes al cliente.'
-                            : 'Directa: BERGER factura al cliente. Indirecta: les factura a ustedes.'}
+                        En concesión te llevás el tractor sin pagarlo y sin factura ahora. El contrato
+                        queda adjunto en el pedido.
                       </span>
+                    </div>
+                  ) : (
+                    <div className="campo">
+                      <span className="campo-lbl">
+                        Tipo de factura <span className="campo-req">· obligatorio</span>
+                      </span>
+                      {segmentos(
+                        datos.tipoFactura,
+                        [
+                          { valor: TIPO_FACTURA.INMEDIATA, rotulo: 'Inmediata' },
+                          { valor: TIPO_FACTURA.DIFERIDA, rotulo: 'Diferida' },
+                        ],
+                        (v) => setDatos({ ...datos, tipoFactura: v }),
+                      )}
                     </div>
                   )}
 
                   {/* A quién se le vende, sólo en venta DIRECTA: ahí BERGER le factura al cliente. */}
-                  {esDirecta && miConcesionario && (
+                  {directa && miConcesionario && (
                     <ClienteFinal
                       cuentas={cuentas}
                       condicionesFiscales={condicionesFiscales}
@@ -586,66 +832,90 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
             {paso === 3 && (
               <div className="card cp-card">
                 <div className="cp-card-tit">
-                  <i className="fa-solid fa-money-bill-wave" aria-hidden="true" /> Cómo se paga
+                  <i className="fa-solid fa-money-bill-wave" aria-hidden="true" />{' '}
+                  {concesion ? 'Condiciones de la concesión' : 'Cómo se paga'}
                 </div>
-                <div className="cp-campos">
-                  {esTerceros ? (
-                    <div className="campo">
-                      <span className="campo-lbl">
-                        Condición de venta <span className="campo-req">· obligatorio</span>
-                      </span>
-                      <Desplegable
-                        valor={datos.condicionVenta}
-                        opciones={CONDICIONES}
-                        vacio="Elegir…"
-                        buscable
-                        onCambiar={(v) =>
-                          setDatos({ ...datos, condicionVenta: v, banco: v.toUpperCase().includes('BANCO') ? datos.banco : '' })
-                        }
-                      />
-                      <span className="campo-ayuda">Cómo paga el cliente final.</span>
-                    </div>
-                  ) : (
-                    <div className="campo">
-                      <span className="campo-lbl">
-                        Concepto de pago <span className="campo-req">· obligatorio</span>
-                      </span>
-                      <Desplegable
-                        valor={datos.conceptoPago}
-                        opciones={CONCEPTOS}
-                        vacio="Elegir…"
-                        onCambiar={(v) => setDatos({ ...datos, conceptoPago: v })}
-                      />
-                      <span className="campo-ayuda">Cómo pagan ustedes la compra de stock.</span>
-                    </div>
-                  )}
 
-                  {pideBanco && (
-                    <div className="campo">
-                      <span className="campo-lbl">Banco</span>
-                      <Desplegable
-                        valor={datos.banco}
-                        opciones={BANCOS}
-                        vacio="Elegir…"
-                        buscable
-                        onCambiar={(v) => setDatos({ ...datos, banco: v })}
-                      />
-                    </div>
-                  )}
-
-                  <div className="campo">
-                    <span className="campo-lbl">Plazo propuesto</span>
-                    <Desplegable
-                      valor={datos.plazo}
-                      opciones={PLAZOS}
-                      vacio="Elegir…"
-                      onCambiar={(v) => setDatos({ ...datos, plazo: v })}
-                    />
-                    <span className="campo-ayuda">Es una propuesta: BERGER lo confirma al aprobar.</span>
+                {concesion ? (
+                  <div className="aviso aviso--neutro">
+                    <i className="fa-solid fa-handshake" aria-hidden="true" />
+                    <span>
+                      En concesión no hay forma de pago ni factura en este momento: el tractor se
+                      lleva con el contrato que adjuntaste
+                      {contrato ? ` (${contrato.name})` : ''}.
+                    </span>
                   </div>
-                </div>
+                ) : (
+                  <div className="cp-campos">
+                    {directa ? (
+                      <div className="campo">
+                        <span className="campo-lbl">
+                          Condición de venta <span className="campo-req">· obligatorio</span>
+                        </span>
+                        <Desplegable
+                          valor={datos.condicionVenta}
+                          opciones={CONDICIONES}
+                          vacio="Elegir…"
+                          buscable
+                          onCambiar={(v) =>
+                            setDatos({
+                              ...datos,
+                              condicionVenta: v,
+                              banco: v.toUpperCase().includes('BANCO') ? datos.banco : '',
+                              descuentoEspecial: esContado(v) ? datos.descuentoEspecial : null,
+                            })
+                          }
+                        />
+                        <span className="campo-ayuda">Cómo paga el cliente final.</span>
+                      </div>
+                    ) : (
+                      <div className="campo">
+                        <span className="campo-lbl">
+                          Concepto de pago <span className="campo-req">· obligatorio</span>
+                        </span>
+                        <Desplegable
+                          valor={datos.conceptoPago}
+                          opciones={CONCEPTOS}
+                          vacio="Elegir…"
+                          onCambiar={(v) =>
+                            setDatos({
+                              ...datos,
+                              conceptoPago: v,
+                              descuentoEspecial: esContado(v) ? datos.descuentoEspecial : null,
+                            })
+                          }
+                        />
+                        <span className="campo-ayuda">Cómo pagan ustedes la compra de stock.</span>
+                      </div>
+                    )}
 
-                {contado && descuentos.length > 0 && (
+                    {pideBanco && (
+                      <div className="campo">
+                        <span className="campo-lbl">Banco</span>
+                        <Desplegable
+                          valor={datos.banco}
+                          opciones={BANCOS}
+                          vacio="Elegir…"
+                          buscable
+                          onCambiar={(v) => setDatos({ ...datos, banco: v })}
+                        />
+                      </div>
+                    )}
+
+                    <div className="campo">
+                      <span className="campo-lbl">Plazo propuesto</span>
+                      <Desplegable
+                        valor={datos.plazo}
+                        opciones={PLAZOS}
+                        vacio="Elegir…"
+                        onCambiar={(v) => setDatos({ ...datos, plazo: v })}
+                      />
+                      <span className="campo-ayuda">Es una propuesta: BERGER lo confirma al aprobar.</span>
+                    </div>
+                  </div>
+                )}
+
+                {!concesion && contado && (descuentos.length > 0 || especial) && (
                   <div className="descuentos">
                     <span className="descuentos-tit">
                       <i className="fa-solid fa-tags" aria-hidden="true" /> Descuentos por contado
@@ -657,13 +927,114 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                           <small>Descuento {d.orden}</small>
                         </span>
                       ))}
+                      {usaEspecial && (datos.descuentoEspecial ?? 0) > 0 && !especialInvalido && (
+                        <span className="descuento descuento--especial">
+                          <b>{datos.descuentoEspecial}%</b>
+                          <small>Especial</small>
+                        </span>
+                      )}
                       <span className="descuento descuento--total">
-                        <b>{descuentoTotalEnPorcentaje(descuentos)}%</b>
+                        <b>{descuentoTotalEnPorcentaje(efectivos)}%</b>
                         <small>en total</small>
                       </span>
                     </div>
+
+                    {/* La Operatoria Especial: una casillita. Tildada, aparece el cuarto descuento,
+                        que se tipea entre 0 y el tope que puso BERGER en Configuración. */}
+                    {especial && (
+                      <div className="especial">
+                        <label className="especial-check">
+                          <input
+                            type="checkbox"
+                            checked={usaEspecial}
+                            onChange={(e) => {
+                              setTextoEspecial('')
+                              setDatos({ ...datos, descuentoEspecial: e.target.checked ? 0 : null })
+                            }}
+                          />
+                          Operatoria especial
+                        </label>
+                        {usaEspecial && (
+                          <span className="especial-campo">
+                            <input
+                              className={`input input--chico especial-input${especialInvalido ? ' input--error' : ''}`}
+                              inputMode="decimal"
+                              placeholder="0"
+                              autoFocus
+                              value={textoEspecial}
+                              onChange={(e) => cambiarEspecial(e.target.value)}
+                            />
+                            <span>% (de 0 a {especial.maximo}%)</span>
+                          </span>
+                        )}
+                        {especialInvalido && (
+                          <span className="campo-ayuda campo-ayuda--falta">
+                            El descuento especial tiene que estar entre 0% y {especial.maximo}%.
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <span className="campo-ayuda">
                       Se aplican uno sobre otro, en ese orden: por eso el total no es la suma.
+                      {usaEspecial ? ' Queda registrado como Operatoria Especial.' : ` Sin tildar, el pedido va con la ${POLITICA_CONTADO.ESTANDAR}.`}
+                    </span>
+                  </div>
+                )}
+
+                {/* Venta directa: a cuánto le vende cada tractor al cliente final. Entre lo que
+                    BERGER le factura (el piso) y la lista (el techo), por UNIDAD. */}
+                {directa && renglones.length > 0 && (
+                  <div className="precios-cf">
+                    <span className="descuentos-tit">
+                      <i className="fa-solid fa-user-tag" aria-hidden="true" /> Precio de venta al
+                      cliente final <span className="campo-req">· obligatorio</span>
+                    </span>
+                    <div className="precios-cf-tabla">
+                      <span className="precios-cf-cab">Modelo</span>
+                      <span className="precios-cf-cab">A facturar x unidad</span>
+                      <span className="precios-cf-cab">Lista x unidad</span>
+                      <span className="precios-cf-cab">Tu precio x unidad s/IVA</span>
+                      {renglones.map((r) => {
+                        const { minimo, maximo } = rangoClienteFinal(r.precio)
+                        const texto = textoPrecios[r.productoId] ?? ''
+                        const problema = texto.trim() ? problemaClienteFinal(r) : ''
+                        return (
+                          <div key={r.productoId} className="precios-cf-fila">
+                            <span className="precios-cf-mod">
+                              <b>{r.modelo || r.nombre}</b>
+                              <small>× {r.cantidad}</small>
+                            </span>
+                            <span className="precios-cf-num">{aMoneda(minimo)}</span>
+                            <span className="precios-cf-num">{aMoneda(maximo)}</span>
+                            <span className="precios-cf-in">
+                              <input
+                                className={`input input--chico${problema ? ' input--error' : ''}`}
+                                inputMode="decimal"
+                                placeholder={aMoneda(maximo)}
+                                value={texto}
+                                onChange={(e) => cambiarPrecioClienteFinal(r.productoId, e.target.value)}
+                              />
+                              {problema && (
+                                <small className="campo-ayuda--falta">
+                                  {problema === 'supera el precio de lista'
+                                    ? `Máximo ${aMoneda(maximo)}`
+                                    : `Mínimo ${aMoneda(minimo)}`}
+                                </small>
+                              )}
+                              {!problema && r.clienteFinal != null && (
+                                <small>
+                                  Comisión {aMoneda(r.comision)}
+                                  {r.cantidad > 1 ? ` (${r.cantidad} u.)` : ''}
+                                </small>
+                              )}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <span className="campo-ayuda">
+                      Por unidad y sin IVA: como mucho el precio de lista, como poco lo que BERGER te
+                      factura con los descuentos. BERGER le factura al cliente final con este precio.
                     </span>
                   </div>
                 )}
@@ -682,22 +1053,46 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                     <dd>{datos.cuentaNombre || '—'}</dd>
                   </div>
                   <div>
-                    <dt>Tipo</dt>
-                    <dd>
-                      {datos.tipoPedido}
-                      {datos.tipoVenta ? ` · ${datos.tipoVenta}` : ''}
-                    </dd>
+                    <dt>Tipo de pedido</dt>
+                    <dd>{concesion ? 'Concesión' : 'Compra'}</dd>
                   </div>
+                  <div>
+                    <dt>Pedido para</dt>
+                    <dd>{datos.pedidoPara || '—'}</dd>
+                  </div>
+                  {concesion ? (
+                    <div>
+                      <dt>Contrato</dt>
+                      <dd>{contrato ? `${contrato.name} · ${pesoArchivo(contrato.size)}` : '—'}</dd>
+                    </div>
+                  ) : (
+                    <div>
+                      <dt>Factura</dt>
+                      <dd>{datos.tipoFactura || '—'}</dd>
+                    </div>
+                  )}
                   {terceros.length > 0 && (
                     <div>
                       <dt>Cliente final</dt>
                       <dd>{terceros.map((c) => c.nombre).join(', ')}</dd>
                     </div>
                   )}
-                  <div>
-                    <dt>Forma de pago</dt>
-                    <dd>{pago || '—'}</dd>
-                  </div>
+                  {!concesion && (
+                    <div>
+                      <dt>Forma de pago</dt>
+                      <dd>{pago || '—'}</dd>
+                    </div>
+                  )}
+                  {!concesion && contado && (
+                    <div>
+                      <dt>Política</dt>
+                      <dd>
+                        {usaEspecial && (datos.descuentoEspecial ?? 0) > 0
+                          ? `${POLITICA_CONTADO.ESPECIAL} (${datos.descuentoEspecial}%)`
+                          : POLITICA_CONTADO.ESTANDAR}
+                      </dd>
+                    </div>
+                  )}
                   {datos.banco && (
                     <div>
                       <dt>Banco</dt>
@@ -716,7 +1111,16 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                       {totales.unidades} · {renglones.length} modelo{renglones.length === 1 ? '' : 's'}
                     </dd>
                   </div>
+                  {directa && (
+                    <div>
+                      <dt>Al cliente final s/IVA</dt>
+                      <dd>
+                        {aMoneda(venta.clienteFinal)} · comisión {aMoneda(venta.comision)}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
+                {credito.insuficiente && avisoSinLinea}
                 <div className="aviso aviso--neutro">
                   <i className="fa-solid fa-circle-info" aria-hidden="true" />
                   <span>

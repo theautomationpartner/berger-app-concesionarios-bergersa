@@ -15,11 +15,17 @@
  *   el navegador.
  */
 import { EVENTO_REINGRESAR, EVENTO_SIN_ACCESO, sesionDelDia } from '@/services/acceso/sesionDelDia'
-import { resolverOperacion, type NombreOperacion, type Variables } from './operaciones'
+import {
+  MUTATION_ARCHIVO,
+  resolverOperacion,
+  type NombreOperacion,
+  type Variables,
+} from './operaciones'
 
 const TOKEN = (import.meta.env.VITE_MONDAY_TOKEN as string | undefined)?.trim() || undefined
 
 const ENDPOINT = import.meta.env.DEV ? '/monday-api' : '/api/monday'
+const ENDPOINT_ARCHIVO = import.meta.env.DEV ? '/monday-file' : '/api/monday-file'
 const API_VERSION = '2024-10'
 
 /**
@@ -143,4 +149,51 @@ export async function mondayApi<T>(
   if (json.errors?.length) throw new Error(json.errors.map((e) => e.message).join(' · '))
   if (!json.data) throw new Error('Monday no devolvió datos.')
   return json.data
+}
+
+/**
+ * Sube un archivo a una columna de archivos: hoy, el contrato de un pedido en concesión.
+ *
+ * Va por un endpoint aparte (`/v2/file`) y como `multipart/form-data`. El formato NO es el de la
+ * especificación de GraphQL multipart: monday espera la mutation en un campo `query`, las variables
+ * como `variables[nombre]` y un `map` en texto plano que asocia la parte binaria con la variable.
+ *
+ * En producción el formulario NO lleva la mutation: lleva el item y la columna, y el proxy arma el
+ * resto después de comprobar que la columna sea una de las habilitadas. El `Content-Type` no se pone
+ * a mano: lo escribe el navegador, porque es lo único que incluye el `boundary` del multipart.
+ */
+export async function subirArchivoAColumna(
+  itemId: string,
+  columnId: string,
+  archivo: File,
+): Promise<string> {
+  let cabeceras: Record<string, string>
+  try {
+    cabeceras = await autorizacion()
+  } catch {
+    throw new SinAcceso('No hay una sesión de monday activa.')
+  }
+
+  const form = new FormData()
+  if (import.meta.env.DEV) {
+    form.append('query', MUTATION_ARCHIVO)
+    form.append('map', JSON.stringify({ archivo: 'variables.file' }))
+  }
+  form.append('variables[itemId]', itemId)
+  form.append('variables[columnId]', columnId)
+  form.append('archivo', archivo, archivo.name)
+
+  const res = await fetch(ENDPOINT_ARCHIVO, {
+    method: 'POST',
+    headers: { ...cabeceras, 'API-Version': API_VERSION },
+    body: form,
+  })
+  await revisarRechazo(res)
+  if (!res.ok) throw new Error(await motivoDelFallo(res))
+
+  const json = (await res.json()) as Respuesta<{ add_file_to_column: { id: string } | null }>
+  if (json.errors?.length) throw new Error(json.errors.map((e) => e.message).join(' · '))
+  const id = json.data?.add_file_to_column?.id
+  if (!id) throw new Error('monday no confirmó la subida del archivo.')
+  return id
 }

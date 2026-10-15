@@ -249,7 +249,11 @@ const COLUMNAS_DE_PEDIDO = new Set<string>([
   COL_PEDIDO.comercial,
   COL_PEDIDO.equipo,
   COL_PEDIDO.tipoPedido,
-  COL_PEDIDO.tipoVenta,
+  COL_PEDIDO.pedidoPara,
+  COL_PEDIDO.tipoFactura,
+  COL_PEDIDO.politicaContado,
+  COL_PEDIDO.totalComision,
+  COL_PEDIDO.totalClienteFinal,
   COL_PEDIDO.estado,
   COL_PEDIDO.condicionVenta,
   COL_PEDIDO.banco,
@@ -276,10 +280,14 @@ const COLUMNAS_DE_PEDIDO_SUB = new Set<string>([
   COL_PEDIDO_SUB.dto1,
   COL_PEDIDO_SUB.dto2,
   COL_PEDIDO_SUB.dto3,
+  COL_PEDIDO_SUB.dto4,
   COL_PEDIDO_SUB.contadoSinIva,
   COL_PEDIDO_SUB.contadoConIva,
   COL_PEDIDO_SUB.facturaSinIva,
   COL_PEDIDO_SUB.facturaConIva,
+  COL_PEDIDO_SUB.precioClienteFinal,
+  COL_PEDIDO_SUB.precioMaximoUnidad,
+  COL_PEDIDO_SUB.comision,
 ])
 
 /**
@@ -302,12 +310,15 @@ const COLUMNAS_DE_VENTA = new Set<string>([
   COL_VENTA.dto1,
   COL_VENTA.dto2,
   COL_VENTA.dto3,
+  COL_VENTA.dto4,
   COL_VENTA.contadoSinIva,
   COL_VENTA.contadoConIva,
   COL_VENTA.totalContadoSinIva,
   COL_VENTA.totalContadoConIva,
   COL_VENTA.facturaSinIva,
   COL_VENTA.facturaConIva,
+  COL_VENTA.precioClienteFinal,
+  COL_VENTA.precioMaximoUnidad,
 ])
 
 const OPS_CRM = {
@@ -544,6 +555,30 @@ export const OPERACIONES: Record<NombreOperacion, Operacion> = {
  */
 export const operacionPermitida = (operacion: Operacion, modulos: readonly ModuloApp[]): boolean =>
   modulos.includes(operacion.modulo) || (operacion.tambienEn ?? []).some((m) => modulos.includes(m))
+
+/** Mutation de subida de archivos. El texto lo pone el servidor, igual que el resto. */
+export const MUTATION_ARCHIVO =
+  'mutation ($itemId: ID!, $columnId: String!, $file: File!) {' +
+  ' add_file_to_column (item_id: $itemId, column_id: $columnId, file: $file) { id } }'
+
+/**
+ * Las columnas a las que esta app puede subir un archivo. Hoy, una: el contrato de un pedido en
+ * concesión. Cualquier otra se rechaza aunque exista.
+ */
+const COLUMNAS_ARCHIVO: Record<string, ModuloApp> = {
+  [COL_PEDIDO.contratoConcesion]: 'pedidos',
+}
+
+/** Valida el destino de un archivo y devuelve el módulo que hace falta para subirlo. */
+export function validarDestinoArchivo(
+  itemId: unknown,
+  columnId: unknown,
+): { itemId: string; columnId: string; modulo: ModuloApp } {
+  const columna = String(columnId ?? '')
+  const modulo = COLUMNAS_ARCHIVO[columna]
+  if (!modulo) throw new OperacionInvalida('Esa columna no admite archivos desde la app.')
+  return { itemId: idMonday(itemId, 'itemId'), columnId: columna, modulo }
+}
 
 /** Resuelve una operación por nombre. Lanza si no existe: no hay consultas fuera del catálogo. */
 export function resolverOperacion(nombreOperacion: unknown): Operacion {
