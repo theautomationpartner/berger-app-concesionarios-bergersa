@@ -28,6 +28,11 @@ import {
   operacionPermitida,
   resolverOperacion,
 } from '../src/services/monday/operaciones'
+import {
+  COLUMNAS_CUENTA_AUTOMATICA,
+  esCuentaAutomatica,
+} from '../src/services/monday/cuentaAutomatica'
+import { COL_CRM_CUENTA } from '../src/services/monday/columns'
 
 const API = 'https://api.monday.com/v2'
 const API_VERSION = '2024-10'
@@ -93,6 +98,41 @@ async function reglaDeNacionalizado(
   return 'Para pasar a "Nacionalizado" hace falta el N° Despacho Importación.'
 }
 
+/**
+ * El único borrado de la app: la cuenta que crea sola la automatización de monday por el dominio
+ * del mail. Antes de borrar se lee la cuenta y se exige que lo sea —recién creada, sin CUIT, con
+ * dominio, en el tablero de Cuentas de los concesionarios—. Un pedido armado a mano con el id de
+ * cualquier otra cuenta se rechaza acá.
+ */
+async function reglaDeCuentaAutomatica(
+  operacion: unknown,
+  variables: Record<string, unknown>,
+  consultar: (q: string, v: Record<string, unknown>) => Promise<{ data?: Record<string, unknown> }>,
+): Promise<string | null> {
+  if (operacion !== 'descartarCuentaAutomatica') return null
+  const r = await consultar(
+    `query ($ids: [ID!], $cols: [String!]) {
+       items(ids: $ids) { created_at board { id } column_values(ids: $cols) { id text } }
+     }`,
+    { ids: [variables.item], cols: COLUMNAS_CUENTA_AUTOMATICA },
+  )
+  const items = (r.data?.items ?? []) as {
+    created_at?: string
+    board?: { id?: string }
+    column_values?: { id: string; text?: string | null }[]
+  }[]
+  const i = items[0]
+  if (!i) return 'Esa cuenta no existe.'
+  const col = (id: string) => i.column_values?.find((c) => c.id === id)?.text ?? ''
+  const es = esCuentaAutomatica({
+    tablero: String(i.board?.id ?? ''),
+    creada: i.created_at ?? '',
+    cuit: col(COL_CRM_CUENTA.cuit),
+    dominio: col(COL_CRM_CUENTA.dominio),
+  })
+  return es ? null : 'Sólo se pueden borrar las cuentas que creó sola la automatización de monday.'
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return error(405, 'Método no permitido.')
 
@@ -144,7 +184,9 @@ export default async function handler(req: Request): Promise<Response> {
      La pantalla ya las aplica, pero un pedido armado a mano se la saltea, y ésta en particular
      deja un estado que no se puede respaldar ante la aduana. Cuesta una lectura del item y
      sólo en la escritura que intenta nacionalizar. */
-  const problema = await reglaDeNacionalizado(variables, consultar)
+  const problema =
+    (await reglaDeNacionalizado(variables, consultar)) ??
+    (await reglaDeCuentaAutomatica(pedido.operacion, variables, consultar))
   if (problema) return error(400, problema)
 
   const res = await fetch(API, {

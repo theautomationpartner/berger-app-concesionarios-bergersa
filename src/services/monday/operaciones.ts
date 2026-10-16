@@ -30,6 +30,7 @@ import {
   TABLEROS,
   TABLEROS_CRM,
 } from './columns'
+import { COLUMNAS_CUENTA_AUTOMATICA } from './cuentaAutomatica'
 
 /**
  * Los módulos de la app: dos poblaciones distintas, con permisos distintos.
@@ -82,6 +83,12 @@ export type NombreOperacion =
   | 'crearActividadCrm'
   | 'completarActividadCrm'
   | 'etiquetasDeActividad'
+  | 'usuarioDelToken'
+  /* Deshacer lo que hace sola la automatización de cuentas por dominio (`cuentaAutomatica.ts`). */
+  | 'vinculosDeContactoPropio'
+  | 'reconectarContactoCrmPropio'
+  | 'cuentaParaDescartar'
+  | 'descartarCuentaAutomatica'
 
 export type Variables = Record<string, unknown>
 
@@ -800,6 +807,77 @@ const OPS_CRM_PROPIO = {
         'el cierre de una actividad',
       ),
     }),
+  },
+
+  /**
+   * El usuario dueño del token. Sólo lo pide la app en desarrollo, donde no hay sesión de monday;
+   * en producción el token es el de la cuenta y no diría nada de quién está usando la app.
+   */
+  usuarioDelToken: {
+    modulo: 'pedidos' as const,
+    query: `query { me { id } }`,
+    validar: () => ({}),
+  },
+
+  /** Las cuentas a las que quedó conectado un contacto. Sólo esa columna. */
+  vinculosDeContactoPropio: {
+    modulo: 'pedidos' as const,
+    query: `
+      query ($ids: [ID!], $columnas: [String!]) {
+        items(ids: $ids) {
+          id
+          board { id }
+          column_values(ids: $columnas) { id ... on BoardRelationValue { linked_item_ids } }
+        }
+      }
+    `,
+    validar: (v: Record<string, unknown>) => ({
+      ids: [idMonday(v.item, 'item')],
+      columnas: [COL_CRM_CONTACTO.cuenta],
+    }),
+  },
+
+  /** Devolverle a un contacto sus cuentas, sin la que le enganchó la automatización. */
+  reconectarContactoCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: `
+      mutation ($tablero: ID!, $item: ID!, $valores: JSON!) {
+        change_multiple_column_values(board_id: $tablero, item_id: $item, column_values: $valores) { id }
+      }
+    `,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.contactos,
+      item: idMonday(v.item, 'item'),
+      valores: valoresAcotados(
+        v.valores,
+        new Set([COL_CRM_CONTACTO.cuenta]),
+        'las cuentas de un contacto',
+      ),
+    }),
+  },
+
+  /** Lo que hace falta para saber si una cuenta la creó la automatización. */
+  cuentaParaDescartar: {
+    modulo: 'pedidos' as const,
+    query: `
+      query ($ids: [ID!], $columnas: [String!]) {
+        items(ids: $ids) { id created_at board { id } column_values(ids: $columnas) { id text } }
+      }
+    `,
+    validar: (v: Record<string, unknown>) => ({
+      ids: [idMonday(v.item, 'item')],
+      columnas: COLUMNAS_CUENTA_AUTOMATICA,
+    }),
+  },
+
+  /**
+   * Borrar la cuenta que creó la automatización. Es el único borrado de la app, y el servidor lo
+   * hace sólo si la cuenta cumple `esCuentaAutomatica` (ver `api/monday.ts`).
+   */
+  descartarCuentaAutomatica: {
+    modulo: 'pedidos' as const,
+    query: `mutation ($item: ID!) { delete_item(item_id: $item) { id } }`,
+    validar: (v: Record<string, unknown>) => ({ item: idMonday(v.item, 'item') }),
   },
 
   etiquetasDeActividad: {

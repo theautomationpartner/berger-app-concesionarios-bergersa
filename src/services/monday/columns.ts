@@ -1368,6 +1368,9 @@ export const COL_CRM_CUENTA = {
   provincia: 'text_mm863q88',
   pais: 'country_mm86qfgk',
   descripcion: 'company_description',
+  /** El dominio web. Lo llena la automatización de monday que crea cuentas por el mail: ver
+      `cuentaAutomatica.ts`. La app no lo escribe. */
+  dominio: 'company_domain',
   /** De doble vía con `COL_CRM_CONTACTO.cuenta`. */
   contactos: 'account_contact',
 } as const

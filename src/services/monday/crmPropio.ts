@@ -25,6 +25,7 @@ import {
   COL_CRM_CUENTA as COL_CUENTA,
 } from './columns'
 import { normalizarWhatsapp } from '@/lib/telefono'
+import { esCuentaAutomatica } from './cuentaAutomatica'
 import { porId, texto, type ColumnaCruda } from './parse'
 import { mondayApi } from './sdk'
 
@@ -308,6 +309,11 @@ export interface AltaContacto {
    * demás.
    */
   cuentaIds?: string[]
+  /**
+   * El mail que tenía antes de editarlo. Lo usa la app de concesionarios: allá cambiar el mail
+   * dispara una automatización de monday que hay que deshacer, y si no cambió no hace falta esperarla.
+   */
+  emailAnterior?: string
 }
 
 /** El nombre del item: "Nombre Apellido Otro". Monday no acepta items sin nombre. */
@@ -337,11 +343,14 @@ export async function crearContacto(d: AltaContacto): Promise<{ id: string; nomb
   if (d.comentarios.trim()) valores[COL_CONTACTO.comentarios] = d.comentarios.trim()
   if (d.cuentaId) valores[COL_CONTACTO.cuenta] = { item_ids: [d.cuentaId] }
 
+  const nombreItem = nombreDeContacto(d.nombres, d.apellidos, d.otro)
   const r = await mondayApi<{ create_item: { id: string; name: string } }>('crearContactoCrmPropio', {
-    nombre: nombreDeContacto(d.nombres, d.apellidos, d.otro),
+    nombre: nombreItem,
     valores: JSON.stringify(valores),
   })
-  return { id: r.create_item.id, nombre: r.create_item.name }
+  /* La automatización de monday le crea y engancha una cuenta por el dominio del mail. */
+  if (d.email.trim()) await soltarCuentasDelDominio(r.create_item.id, d.cuentaId ? [d.cuentaId] : [])
+  return { id: r.create_item.id, nombre: r.create_item.name || nombreItem }
 }
 
 export interface AltaCuenta {
@@ -405,11 +414,12 @@ export async function crearCuenta(d: AltaCuenta): Promise<{ id: string; nombre: 
   if (d.contactoIds.length > 0) valores[COL_CUENTA.contactos] = { item_ids: d.contactoIds }
   Object.assign(valores, columnasDeConcesionario(d))
 
+  const nombreItem = d.razonSocial.trim()
   const r = await mondayApi<{ create_item: { id: string; name: string } }>('crearCuentaCrmPropio', {
-    nombre: d.razonSocial.trim(),
+    nombre: nombreItem,
     valores: JSON.stringify(valores),
   })
-  return { id: r.create_item.id, nombre: r.create_item.name }
+  return { id: r.create_item.id, nombre: r.create_item.name || nombreItem }
 }
 
 /* ------------------------------------------------------------------ *
@@ -514,6 +524,74 @@ export async function actualizarContacto(id: string, d: AltaContacto): Promise<v
     nombre: nombreDeContacto(d.nombres, d.apellidos, d.otro),
     valores: JSON.stringify(valores),
   })
+  /* Sólo si cambió el mail: es lo que dispara la automatización de cuentas por dominio. */
+  const mail = d.email.trim().toLowerCase()
+  if (mail && mail !== (d.emailAnterior ?? '').trim().toLowerCase()) {
+    await soltarCuentasDelDominio(id, d.cuentaIds ?? (d.cuentaId ? [d.cuentaId] : []))
+  }
+}
+
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Deshace lo que hace sola la automatización de cuentas por dominio (ver `cuentaAutomatica.ts`).
+ *
+ * monday tarda unos segundos en actuar, así que se mira el contacto varias veces. Cuando aparece
+ * una cuenta que no es de las suyas, se le devuelven sus cuentas y, si esa cuenta la creó la
+ * automatización recién, se borra. Si la cuenta ya existía —otra de ese dominio—, sólo se la
+ * desengancha: no es de la app borrarla.
+ *
+ * Devuelve las cuentas que se soltaron. Nunca tira: el contacto ya quedó bien guardado.
+ */
+export async function soltarCuentasDelDominio(
+  contactoId: string,
+  propias: string[],
+  intentos = 8,
+  cadaMs = 1500,
+): Promise<string[]> {
+  try {
+    for (let i = 0; i < intentos; i++) {
+      await espera(cadaMs)
+      const r = await mondayApi<{
+        items: { column_values: { linked_item_ids?: string[] | null }[] }[]
+      }>('vinculosDeContactoPropio', { item: contactoId })
+      const enganchadas = (r.items?.[0]?.column_values?.[0]?.linked_item_ids ?? []).map(String)
+      const extras = enganchadas.filter((x) => !propias.includes(x))
+      if (extras.length === 0) continue
+
+      await mondayApi('reconectarContactoCrmPropio', {
+        item: contactoId,
+        valores: JSON.stringify({ [COL_CONTACTO.cuenta]: { item_ids: propias } }),
+      })
+      for (const id of extras) {
+        try {
+          const c = await mondayApi<{
+            items: {
+              created_at: string
+              board: { id: string }
+              column_values: { id: string; text: string | null }[]
+            }[]
+          }>('cuentaParaDescartar', { item: id })
+          const it = c.items?.[0]
+          if (!it) continue
+          const col = (k: string) => it.column_values.find((x) => x.id === k)?.text ?? ''
+          const automatica = esCuentaAutomatica({
+            tablero: String(it.board?.id ?? ''),
+            creada: it.created_at,
+            cuit: col(COL_CUENTA.cuit),
+            dominio: col(COL_CUENTA.dominio),
+          })
+          if (automatica) await mondayApi('descartarCuentaAutomatica', { item: id })
+        } catch {
+          /* si no se pudo borrar, al menos quedó desenganchada */
+        }
+      }
+      return extras
+    }
+  } catch {
+    /* sin lectura no hay nada que corregir */
+  }
+  return []
 }
 
 /* ------------------------------------------------------------------ *

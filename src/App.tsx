@@ -202,9 +202,11 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
         />
       )}
 
-      {ruta.principal === 'clientes' && puedePedidos && <CuentasYContactos />}
+      {ruta.principal === 'clientes' && puedePedidos && (
+        <CuentasYContactos onInicio={() => navegar(RUTA_INICIO)} />
+      )}
 
-      {ruta.principal === 'actividades' && puedePedidos && <Actividades />}
+      {ruta.principal === 'actividades' && puedePedidos && <Actividades onInicio={() => navegar(RUTA_INICIO)} />}
 
       {saliendo && (
         <ConfirmarSalida
