@@ -1,26 +1,13 @@
 /**
- * VENTA · alta de cuentas y contactos en el CRM.
+ * 🌐Cuentas de BERGER, leídas desde la app de concesionarios.
  *
- * Es el único lugar donde se dan de alta: en los tableros se puede cargar una fila a mano, pero
- * ahí nadie comprueba que el CUIT exista ni que el contacto no esté repetido. Acá sí, y por eso
- * esta pantalla existe en vez de mandar a la gente al tablero.
- *
- * **La regla de los duplicados**, que es la razón de ser de casi todo este archivo: un contacto se
- * identifica por su mail o por su WhatsApp. Dentro de UNA cuenta no puede haber dos contactos que
- * compartan alguno de los dos —sería la misma persona cargada dos veces—. Entre cuentas distintas
- * sí: el mismo señor puede ser el comprador de dos empresas, y son dos contactos legítimos con los
- * mismos datos de contacto.
+ * Es de donde sale la cuenta del concesionario que pide y su línea de crédito. Sólo se lee: el
+ * cliente final ya no se da de alta acá sino en el CRM propio del concesionario (`crmPropio.ts`),
+ * y un concesionario no tiene por qué escribir en el CRM de BERGER.
  */
-import { CRM, COL_CONTACTO, COL_CUENTA, COL_CUENTA_VENTA } from './columns'
+import { COL_CUENTA, COL_CUENTA_VENTA } from './columns'
 import { aNumeroEspejo, porId, texto, type ColumnaCruda } from './parse'
 import { mondayApi } from './sdk'
-
-const hoy = (): string => {
-  const ahora = new Date()
-  const en = (opcion: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', ...opcion })
-  return en({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(ahora)
-}
 
 /* ------------------------------------------------------------------ *
  * Lectura
@@ -135,125 +122,4 @@ export async function cuentasDelCrm(): Promise<CuentaCrm[]> {
       }
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-}
-
-export interface Concesionario {
-  id: string
-  nombre: string
-}
-
-/**
- * Las etiquetas de los desplegables de los dos tableros.
- *
- * Se leen de monday y nunca se escriben desde el código: una etiqueta que no existe hace fallar la
- * escritura ENTERA del item, no sólo esa columna.
- */
-export async function etiquetasDelCrm(): Promise<{
-  tipoPersona: string[]
-  clasificacion: string[]
-  categoriaCuenta: string[]
-  condicionFiscal: string[]
-  categoriaContacto: string[]
-}> {
-  const r = await mondayApi<{
-    boards: {
-      id: string
-      cuenta: { id: string; settings_str: string }[]
-      contacto: { id: string; settings_str: string }[]
-    }[]
-  }>('etiquetasDelCrm', {
-    columnasCuenta: [
-      COL_CUENTA.tipoPersona,
-      COL_CUENTA.clasificacion,
-      COL_CUENTA.categoria,
-      COL_CUENTA.condicionFiscal,
-    ],
-    columnasContacto: [COL_CONTACTO.categoria],
-  })
-
-  const etiquetas = (id: string): string[] => {
-    /* Las dos listas de columnas se piden sobre los dos tableros, así que de cada tablero vuelven
-       las que tiene y vacías las del otro. Se recorre todo y se queda con la que aparezca. */
-    for (const b of r.boards ?? []) {
-      const col = [...(b.cuenta ?? []), ...(b.contacto ?? [])].find((c) => c.id === id)
-      if (!col?.settings_str) continue
-      try {
-        const ajustes = JSON.parse(col.settings_str) as {
-          labels?: { id: number; name: string }[] | Record<string, string>
-        }
-        const l = ajustes.labels
-        if (Array.isArray(l)) return l.map((x) => x.name).filter(Boolean)
-        if (l && typeof l === 'object') return Object.values(l).filter(Boolean)
-      } catch {
-        /* una columna ilegible no tiene por qué dejar sin opciones a las otras cuatro */
-      }
-    }
-    return []
-  }
-
-  return {
-    tipoPersona: etiquetas(COL_CUENTA.tipoPersona),
-    clasificacion: etiquetas(COL_CUENTA.clasificacion),
-    categoriaCuenta: etiquetas(COL_CUENTA.categoria),
-    condicionFiscal: etiquetas(COL_CUENTA.condicionFiscal),
-    categoriaContacto: etiquetas(COL_CONTACTO.categoria),
-  }
-}
-
-/** ¿Ya existe una cuenta con este CUIT? El CUIT es la llave: no puede haber dos. */
-export function cuentaConElMismoCuit(cuentas: CuentaCrm[], cuit: string): CuentaCrm | null {
-  const d = cuit.replace(/\D/g, '')
-  if (!d) return null
-  return cuentas.find((c) => c.cuit.replace(/\D/g, '') === d) ?? null
-}
-
-export interface AltaCuenta {
-  razonSocial: string
-  cuit: string
-  tipoPersona: string
-  clasificacion: string
-  categorias: string[]
-  condicionFiscal: string
-  direccion: string
-  ciudad: string
-  provincia: string
-  paisCodigo: string
-  paisNombre: string
-  descripcion: string
-  concesionarioIds: string[]
-  /** Contactos que ya existen y se conectan a la cuenta nueva. */
-  contactoIds: string[]
-}
-
-export async function crearCuenta(d: AltaCuenta): Promise<{ id: string; nombre: string }> {
-  const valores: Record<string, unknown> = {
-    [COL_CUENTA.cuit]: d.cuit.trim(),
-    [COL_CUENTA.estado]: { label: CRM.CUENTA_ACTIVA },
-    [COL_CUENTA.fechaAlta]: { date: hoy() },
-  }
-  if (d.tipoPersona) valores[COL_CUENTA.tipoPersona] = { label: d.tipoPersona }
-  if (d.clasificacion) valores[COL_CUENTA.clasificacion] = { label: d.clasificacion }
-  if (d.categorias.length > 0) valores[COL_CUENTA.categoria] = { labels: d.categorias }
-  if (d.condicionFiscal) valores[COL_CUENTA.condicionFiscal] = { label: d.condicionFiscal }
-
-  /* La dirección va en texto y no en la columna de ubicación: la de ubicación necesita latitud y
-     longitud, y lo que devuelve ARCA es una dirección escrita. Cargarla ahí con coordenadas
-     inventadas pondría a todos los clientes en el mismo punto del mapa. */
-  if (d.direccion.trim()) valores[COL_CUENTA.direccionTexto] = d.direccion.trim()
-  if (d.ciudad.trim()) valores[COL_CUENTA.ciudad] = d.ciudad.trim()
-  if (d.provincia.trim()) valores[COL_CUENTA.provincia] = d.provincia.trim()
-  if (d.paisCodigo) {
-    valores[COL_CUENTA.pais] = { countryCode: d.paisCodigo, countryName: d.paisNombre }
-  }
-  if (d.descripcion.trim()) valores[COL_CUENTA.descripcion] = d.descripcion.trim()
-  if (d.concesionarioIds.length > 0) {
-    valores[COL_CUENTA.concesionario] = { item_ids: d.concesionarioIds }
-  }
-  if (d.contactoIds.length > 0) valores[COL_CUENTA.contactos] = { item_ids: d.contactoIds }
-
-  const r = await mondayApi<{ create_item: { id: string; name: string } }>('crearCuentaCrm', {
-    nombre: d.razonSocial.trim(),
-    valores: JSON.stringify(valores),
-  })
-  return { id: r.create_item.id, nombre: r.create_item.name }
 }

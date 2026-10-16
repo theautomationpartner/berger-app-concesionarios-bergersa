@@ -38,7 +38,9 @@ import {
   TIPO_FACTURA,
   TIPO_PEDIDO,
 } from '@/services/monday/columns'
-import { cuentasDelCrm, etiquetasDelCrm, type CuentaCrm } from '@/services/monday/crm'
+import { cuentasDelCrm, type CuentaCrm } from '@/services/monday/crm'
+import { cuentasDelCrm as cuentasPropias, type CuentaCrm as CuentaPropia } from '@/services/monday/crmPropio'
+import { CuentasYContactos } from '@/features/crm/CuentasYContactos'
 import {
   calcularRenglones,
   concesionesDe,
@@ -151,7 +153,10 @@ export function CrearPedido({ equipos, propio, esAdministracion, comercialId = '
   const [catalogo, setCatalogo] = useState<ProductoDeCatalogo[]>([])
   const [descuentos, setDescuentos] = useState<DescuentoConfigurado[]>([])
   const [especial, setEspecial] = useState<OperatoriaEspecial | null>(null)
-  const [condicionesFiscales, setCondicionesFiscales] = useState<string[]>([])
+  /** Los clientes finales posibles: las cuentas del CRM propio que este usuario ve. */
+  const [clientesPropios, setClientesPropios] = useState<CuentaPropia[]>([])
+  /** El alta de un cliente final, abierta sin desmontar el pedido. */
+  const [creandoCliente, setCreandoCliente] = useState(false)
   /** Los pedidos ya cargados: de ahí sale cuántas concesiones tiene abiertas. */
   const [pedidos, setPedidos] = useState<PedidoLeido[]>([])
   const [sinPedidos, setSinPedidos] = useState(false)
@@ -178,14 +183,14 @@ export function CrearPedido({ equipos, propio, esAdministracion, comercialId = '
     setCargando(true)
     setError(null)
     try {
-      const [c, cat, conf, et] = await Promise.all([
+      const [c, cat, conf, propias] = await Promise.all([
         cuentasDelCrm(),
         catalogoDeVenta(),
         configuracionDeContado(),
-        etiquetasDelCrm(),
+        cuentasPropias(),
       ])
       setCuentas(c)
-      setCondicionesFiscales(et.condicionFiscal)
+      setClientesPropios(propias)
       setCatalogo(cat.filter((p) => p.vigente))
       setDescuentos(conf.descuentos)
       setEspecial(conf.especial)
@@ -264,7 +269,7 @@ export function CrearPedido({ equipos, propio, esAdministracion, comercialId = '
     [renglones],
   )
   const faltan = faltaParaElPedido(datos, renglones, { conContrato: Boolean(contrato), especial })
-  const terceros = cuentas.filter((c) => datos.clientes.some((x) => x.id === c.id))
+  const terceros = clientesPropios.filter((c) => datos.clientes.some((x) => x.id === c.id))
   const credito = lineaDeCredito(miConcesionario, totales, concesion)
 
   /* La Operatoria Especial: tildada, se tipea el porcentaje entre 0 y el tope de Configuración. */
@@ -500,6 +505,32 @@ export function CrearPedido({ equipos, propio, esAdministracion, comercialId = '
   )
 
   /* ============ Pedido cargado ============ */
+  /* El alta del cliente final ocupa la pantalla, pero el pedido sigue montado: lo armado no se
+     pierde. Al volver se releen las cuentas propias, y la creada queda elegida. */
+  if (creandoCliente) {
+    return (
+      <CuentasYContactos
+        volverA={{
+          que: 'el pedido',
+          categoria: 'cliente final',
+          onVolver: (c) => {
+            setCreandoCliente(false)
+            if (c) {
+              setDatos((d) =>
+                d.clientes.some((x) => x.id === c.id)
+                  ? d
+                  : { ...d, clientes: [...d.clientes, { id: c.id, nombre: c.nombre }] },
+              )
+            }
+            void cuentasPropias()
+              .then(setClientesPropios)
+              .catch(() => {})
+          },
+        }}
+      />
+    )
+  }
+
   if (listo) {
     return (
       <div className="scroll">
@@ -786,15 +817,11 @@ export function CrearPedido({ equipos, propio, esAdministracion, comercialId = '
                   {/* A quién se le vende, sólo en venta DIRECTA: ahí BERGER le factura al cliente. */}
                   {directa && miConcesionario && (
                     <ClienteFinal
-                      cuentas={cuentas}
-                      condicionesFiscales={condicionesFiscales}
+                      cuentas={clientesPropios}
                       elegidos={datos.clientes}
-                      /* Con la función y no con `datos`: el alta de un cliente nuevo espera a
-                         monday, y para cuando vuelve `datos` puede ser el de un render anterior. */
                       onCambiar={(clientes) => setDatos((d) => ({ ...d, clientes }))}
-                      excluirId={datos.cuentaId}
                       cargando={cargando}
-                      onCuentaNueva={(c) => setCuentas((v) => [...v, c])}
+                      onCrearNuevo={() => setCreandoCliente(true)}
                     />
                   )}
                 </div>

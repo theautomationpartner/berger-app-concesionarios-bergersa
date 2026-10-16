@@ -5,8 +5,8 @@
  * tableros del workspace Concesionarios BERGER SA (`TABLEROS_CRM`). No confundir con `crm.ts`,
  * que lee las cuentas de BERGER para elegir el cliente final de un pedido.
  *
- * Lo que este CRM no tiene y por eso acá no está: categorías (de cuenta y de contacto), línea de
- * crédito, fecha de alta de la cuenta, y los datos del concesionario (equipo y concesiones).
+ * Lo que este CRM no tiene y por eso acá no está: línea de crédito, fecha de alta de la cuenta, y
+ * los datos del concesionario (equipo y concesiones). Categoría sí tiene ("Cliente Final").
  *
  * Es el único lugar donde se dan de alta: en los tableros se puede cargar una fila a mano, pero
  * ahí nadie comprueba que el CUIT exista ni que el contacto no esté repetido. Acá sí, y por eso
@@ -97,6 +97,7 @@ interface ItemCrudo {
 const COLUMNAS_CUENTA = [
   COL_CUENTA.cuit,
   COL_CUENTA.clasificacion,
+  COL_CUENTA.categoria,
   COL_CUENTA.tipoPersona,
   COL_CUENTA.condicionFiscal,
   COL_CUENTA.direccionTexto,
@@ -116,6 +117,7 @@ const COLUMNAS_CONTACTO = [
   COL_CONTACTO.comentarios,
   COL_CONTACTO.email,
   COL_CONTACTO.whatsapp,
+  COL_CONTACTO.categoria,
   COL_CONTACTO.estado,
   COL_CONTACTO.cuenta,
 ]
@@ -138,7 +140,7 @@ export async function cuentasDelCrm(): Promise<CuentaCrm[]> {
         nombre: i.name.trim(),
         cuit: texto(c[COL_CUENTA.cuit]),
         clasificacion: texto(c[COL_CUENTA.clasificacion]),
-        categoria: '',
+        categoria: texto(c[COL_CUENTA.categoria]),
         tipoPersona: texto(c[COL_CUENTA.tipoPersona]),
         condicionFiscal: texto(c[COL_CUENTA.condicionFiscal]),
         direccion: texto(c[COL_CUENTA.direccionTexto]),
@@ -174,7 +176,7 @@ export async function contactosDelCrm(): Promise<ContactoCrm[]> {
         otro: texto(c[COL_CONTACTO.otro]),
         email: texto(c[COL_CONTACTO.email]),
         whatsapp: texto(c[COL_CONTACTO.whatsapp]),
-        categoria: '',
+        categoria: texto(c[COL_CONTACTO.categoria]),
         pais: texto(c[COL_CONTACTO.pais]),
         comentarios: texto(c[COL_CONTACTO.comentarios]),
         estado: texto(c[COL_CONTACTO.estado]),
@@ -204,8 +206,13 @@ export async function etiquetasDelCrm(): Promise<{
       contacto: { id: string; settings_str: string }[]
     }[]
   }>('etiquetasCrmPropio', {
-    columnasCuenta: [COL_CUENTA.tipoPersona, COL_CUENTA.clasificacion, COL_CUENTA.condicionFiscal],
-    columnasContacto: [COL_CONTACTO.estado],
+    columnasCuenta: [
+      COL_CUENTA.tipoPersona,
+      COL_CUENTA.clasificacion,
+      COL_CUENTA.categoria,
+      COL_CUENTA.condicionFiscal,
+    ],
+    columnasContacto: [COL_CONTACTO.categoria],
   })
 
   const etiquetas = (id: string): string[] => {
@@ -231,10 +238,9 @@ export async function etiquetasDelCrm(): Promise<{
   return {
     tipoPersona: etiquetas(COL_CUENTA.tipoPersona),
     clasificacion: etiquetas(COL_CUENTA.clasificacion),
-    /* Este CRM no tiene categorías: sin opciones, el formulario no las pregunta. */
-    categoriaCuenta: [],
+    categoriaCuenta: etiquetas(COL_CUENTA.categoria),
     condicionFiscal: etiquetas(COL_CUENTA.condicionFiscal),
-    categoriaContacto: [],
+    categoriaContacto: etiquetas(COL_CONTACTO.categoria),
   }
 }
 
@@ -327,6 +333,7 @@ export async function crearContacto(d: AltaContacto): Promise<{ id: string; nomb
     [COL_CONTACTO.estado]: { label: CRM.CONTACTO_ACTIVO },
     [COL_CONTACTO.fechaAlta]: { date: hoy() },
   }
+  if (d.categorias.length > 0) valores[COL_CONTACTO.categoria] = { labels: d.categorias }
   if (d.email.trim()) valores[COL_CONTACTO.email] = { email: d.email.trim(), text: d.email.trim() }
   if (d.whatsapp) {
     /* La columna `phone` de monday guarda el número y el país por separado. El número va sin el
@@ -399,6 +406,7 @@ export async function crearCuenta(d: AltaCuenta): Promise<{ id: string; nombre: 
   }
   if (d.tipoPersona) valores[COL_CUENTA.tipoPersona] = { label: d.tipoPersona }
   if (d.clasificacion) valores[COL_CUENTA.clasificacion] = { label: d.clasificacion }
+  if (d.categorias.length > 0) valores[COL_CUENTA.categoria] = { labels: d.categorias }
   if (d.condicionFiscal) valores[COL_CUENTA.condicionFiscal] = { label: d.condicionFiscal }
 
   /* La dirección va en texto y no en la columna de ubicación: la de ubicación necesita latitud y
@@ -485,6 +493,7 @@ export async function actualizarCuenta(id: string, d: AltaCuenta): Promise<void>
   valores[COL_CUENTA.tipoPersona] = d.tipoPersona ? { label: d.tipoPersona } : {}
   valores[COL_CUENTA.clasificacion] = d.clasificacion ? { label: d.clasificacion } : {}
   valores[COL_CUENTA.condicionFiscal] = d.condicionFiscal ? { label: d.condicionFiscal } : {}
+  valores[COL_CUENTA.categoria] = d.categorias.length > 0 ? { labels: d.categorias } : {}
   valores[COL_CUENTA.pais] = d.paisCodigo
     ? { countryCode: d.paisCodigo, countryName: d.paisNombre }
     : {}
@@ -515,6 +524,7 @@ export async function actualizarContacto(id: string, d: AltaContacto): Promise<v
   valores[COL_CONTACTO.pais] = d.paisCodigo
     ? { countryCode: d.paisCodigo, countryName: d.paisNombre }
     : {}
+  valores[COL_CONTACTO.categoria] = d.categorias.length > 0 ? { labels: d.categorias } : {}
   valores[COL_CONTACTO.cuenta] = {
     item_ids: d.cuentaIds ?? (d.cuentaId ? [d.cuentaId] : []),
   }

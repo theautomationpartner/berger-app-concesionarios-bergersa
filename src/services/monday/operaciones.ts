@@ -23,7 +23,6 @@ import {
   COL_CRM_ACTIVIDAD,
   COL_CRM_CONTACTO,
   COL_CRM_CUENTA,
-  COL_CUENTA,
   COL_PEDIDO,
   COL_PEDIDO_SUB,
   COL_VENTA,
@@ -69,8 +68,6 @@ export type NombreOperacion =
   | 'catalogoDeVenta'
   | 'configuracionDeVenta'
   | 'cuentasDelCrm'
-  | 'etiquetasDelCrm'
-  | 'crearCuentaCrm'
   /* El CRM propio del concesionario: sus cuentas, contactos y actividades. */
   | 'cuentasCrmPropio'
   | 'contactosCrmPropio'
@@ -239,31 +236,6 @@ const CONSULTA_ITEMS_CRM = `
     }
   }
 `
-
-/**
- * Lo único que la app escribe al dar de alta una cuenta.
- *
- * Es deliberadamente más corta que el tablero: desde acá no se puede dar de baja una cuenta ni
- * tocarle la fecha de baja. El alta da de alta; lo demás se hace en monday, donde queda
- * registrado quién lo hizo.
- */
-const COLUMNAS_DE_CUENTA = new Set<string>([
-  COL_CUENTA.tipoPersona,
-  COL_CUENTA.estado,
-  COL_CUENTA.clasificacion,
-  COL_CUENTA.categoria,
-  COL_CUENTA.cuit,
-  COL_CUENTA.condicionFiscal,
-  COL_CUENTA.direccion,
-  COL_CUENTA.direccionTexto,
-  COL_CUENTA.ciudad,
-  COL_CUENTA.provincia,
-  COL_CUENTA.pais,
-  COL_CUENTA.descripcion,
-  COL_CUENTA.contactos,
-  COL_CUENTA.concesionario,
-  COL_CUENTA.fechaAlta,
-])
 
 /**
  * Lo que el concesionario puede escribir en un pedido.
@@ -524,48 +496,6 @@ const OPS_CRM = {
       limite: entero(v.limite, 'limite', 1, 500),
     }),
   },
-
-  /**
-   * Las etiquetas de los desplegables de los dos tableros, en una sola consulta.
-   *
-   * Se leen de monday en vez de estar escritas acá porque una etiqueta inexistente hace fallar la
-   * escritura ENTERA del item: si alguien agrega "Contratista" a Categoría, la app la ofrece sin
-   * que haya que desplegar nada.
-   */
-  etiquetasDelCrm: {
-    modulo: 'pedidos' as const,
-    /* El concesionario la necesita para elegir el cliente final de su pedido. */
-    query: `
-      query ($tableros: [ID!], $columnasCuenta: [String!], $columnasContacto: [String!]) {
-        boards(ids: $tableros) {
-          id
-          cuenta: columns(ids: $columnasCuenta) { id settings_str }
-          contacto: columns(ids: $columnasContacto) { id settings_str }
-        }
-      }
-    `,
-    validar: (v: Record<string, unknown>) => ({
-      tableros: [TABLEROS.cuentas, TABLEROS.contactos],
-      columnasCuenta: idsDeColumnas(v.columnasCuenta),
-      columnasContacto: idsDeColumnas(v.columnasContacto),
-    }),
-  },
-
-  /** Alta de una cuenta. El tablero lo fija el servidor y las columnas son una lista cerrada. */
-  crearCuentaCrm: {
-    modulo: 'pedidos' as const,
-    /* El concesionario la necesita para elegir el cliente final de su pedido. */
-    query: `
-      mutation ($tablero: ID!, $nombre: String!, $valores: JSON!) {
-        create_item(board_id: $tablero, item_name: $nombre, column_values: $valores) { id name }
-      }
-    `,
-    validar: (v: Record<string, unknown>) => ({
-      tablero: TABLEROS.cuentas,
-      nombre: nombre(v.nombre),
-      valores: valoresAcotados(v.valores, COLUMNAS_DE_CUENTA, 'el alta de una cuenta'),
-    }),
-  },
 }
 
 /* ------------------------------------------------------------------ *
@@ -582,6 +512,7 @@ const COLUMNAS_DE_CUENTA_PROPIA = new Set<string>([
   COL_CRM_CUENTA.tipoPersona,
   COL_CRM_CUENTA.estado,
   COL_CRM_CUENTA.clasificacion,
+  COL_CRM_CUENTA.categoria,
   COL_CRM_CUENTA.cuit,
   COL_CRM_CUENTA.condicionFiscal,
   COL_CRM_CUENTA.direccionTexto,
@@ -601,6 +532,7 @@ const COLUMNAS_DE_CONTACTO_PROPIO = new Set<string>([
   COL_CRM_CONTACTO.nombres,
   COL_CRM_CONTACTO.apellidos,
   COL_CRM_CONTACTO.otro,
+  COL_CRM_CONTACTO.categoria,
   COL_CRM_CONTACTO.estado,
   COL_CRM_CONTACTO.email,
   COL_CRM_CONTACTO.pais,

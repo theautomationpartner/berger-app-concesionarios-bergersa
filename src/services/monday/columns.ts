@@ -1360,6 +1360,8 @@ export const COL_CRM_CUENTA = {
   /** Toda cuenta nace Activo. */
   estado: 'color_mm86r44a',
   clasificacion: 'color_mm865ky',
+  /** Una sola desde la app. Hoy tiene "Cliente FInal" (así, con la F mayúscula). */
+  categoria: 'dropdown_mm86mcsg',
   cuit: 'text_mm86k6yj',
   condicionFiscal: 'color_mm86ncn9',
   direccion: 'location_mm86yrsj',
@@ -1385,6 +1387,8 @@ export const COL_CRM_CONTACTO = {
   apellidos: 'text_mm862aeq',
   /** Un sector, un mail general: con esto, nombre y apellido sobran. */
   otro: 'text_mm86ny5v',
+  /** Hoy tiene "Cliente Final". */
+  categoria: 'dropdown_mm864m47',
   estado: 'color_mm86x9nz',
   email: 'contact_email',
   pais: 'country_mm86by25',

@@ -226,6 +226,35 @@ export function veElItem(operacion: string, columnas: ColumnaCrudaDeAlcance[], a
   return sobre.regla.ve(a, Object.fromEntries(columnas.map((c) => [c.id, c])))
 }
 
+/**
+ * El cliente final de un pedido es una cuenta del CRM propio: tiene que ser una que este usuario
+ * ve (de su concesionario). Sin esto, con el id de la cuenta de otro concesionario se le podría
+ * cargar un pedido a su cliente.
+ */
+export const TERCERO_DEL_PEDIDO: Record<string, string> = {
+  crearPedido: COL_PEDIDO.tercero,
+  crearUnidadDeVenta: COL_VENTA.tercero,
+}
+
+/** Los clientes finales que trae un alta de pedido o de unidad. */
+export function tercerosDe(operacion: string, valoresJson: unknown): string[] {
+  const col = TERCERO_DEL_PEDIDO[operacion]
+  if (!col) return []
+  try {
+    const v = JSON.parse(String(valoresJson ?? '{}')) as Record<string, { item_ids?: (string | number)[] }>
+    return (v[col]?.item_ids ?? []).map(String)
+  } catch {
+    return []
+  }
+}
+
+/** Las columnas de una cuenta propia que hacen falta para saber si este usuario la ve. */
+export const COLUMNAS_DE_CUENTA_PROPIA = CUENTAS.columnas
+
+/** ¿Este usuario ve esta cuenta propia? */
+export const veCuentaPropia = (a: Alcance, columnas: ColumnaCrudaDeAlcance[]): boolean =>
+  CUENTAS.ve(a, Object.fromEntries(columnas.map((c) => [c.id, c])))
+
 /* ------------------------------------------------------------------ *
  * Lo que se escribe al crear
  * ------------------------------------------------------------------ */

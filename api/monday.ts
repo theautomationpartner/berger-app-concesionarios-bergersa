@@ -32,7 +32,7 @@ import {
   COLUMNAS_CUENTA_AUTOMATICA,
   esCuentaAutomatica,
 } from '../src/services/monday/cuentaAutomatica'
-import { COL_CRM_CUENTA } from '../src/services/monday/columns'
+import { COL_CRM_CUENTA, TABLEROS_CRM } from '../src/services/monday/columns'
 import {
   alcanceDe,
   asignacionAlCrear,
@@ -42,6 +42,9 @@ import {
   LECTURAS_CON_ALCANCE,
   problemaDeEscrituraDePedido,
   SOBRE_UN_ITEM,
+  tercerosDe,
+  veCuentaPropia,
+  COLUMNAS_DE_CUENTA_PROPIA,
   veElItem,
   type Alcance,
 } from '../src/services/monday/alcance'
@@ -171,6 +174,29 @@ export async function aplicarAlcance(
   const extra = asignacionAlCrear(operacion, alcance)
   if (Object.keys(extra).length > 0 && typeof v.valores === 'string') {
     v = { ...v, valores: JSON.stringify({ ...(JSON.parse(v.valores) as object), ...extra }) }
+  }
+
+  /* El cliente final del pedido: una cuenta propia que este usuario ve, y de 💼Cuentas. */
+  const terceros = tercerosDe(operacion, v.valores)
+  if (terceros.length > 0 && alcance.tipo !== 'todo') {
+    const r = await consultar(
+      `query ($ids: [ID!], $cols: [String!]) {
+         items(ids: $ids) { id board { id } column_values(ids: $cols) { id value } }
+       }`,
+      { ids: terceros, cols: COLUMNAS_DE_CUENTA_PROPIA },
+    )
+    const items = (r.data?.items ?? []) as {
+      board?: { id?: string }
+      column_values?: { id: string; value?: string | null }[]
+    }[]
+    const todosPropios =
+      items.length === terceros.length &&
+      items.every(
+        (i) =>
+          String(i.board?.id ?? '') === TABLEROS_CRM.cuentas &&
+          veCuentaPropia(alcance, i.column_values ?? []),
+      )
+    if (!todosPropios) return { rechazo: 'El cliente final tiene que ser uno de tus clientes.' }
   }
 
   const sobre = SOBRE_UN_ITEM[operacion]
