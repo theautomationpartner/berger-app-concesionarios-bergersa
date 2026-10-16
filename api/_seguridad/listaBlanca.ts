@@ -24,6 +24,13 @@ export interface Perfil {
   idTeam: string
   tipoUsuario: string
   autenticadorDesactivado: boolean
+  /** "Comercial" y/o "Administrador", si es de un concesionario. */
+  rolConcesionario: string[]
+  /** Id del team de monday de su concesionario. Un comercial no está en ese team, pero trabaja para él. */
+  idTeamConcesionario: string
+  nombreTeamConcesionario: string
+  /** La cuenta de su concesionario en 🌐Cuentas (normalmente una). */
+  concesionarioIds: string[]
   /**
    * Los equipos de monday que le sirven a la pantalla para saber de qué concesionario es: los suyos
    * si es un concesionario, todos si es de Administración (puede cargar a nombre de cualquiera).
@@ -41,7 +48,7 @@ interface ItemCrudo {
 
 const COLUMNAS = Object.values(COL_LISTA_BLANCA)
 
-const CAMPOS = `id name board { id } column_values(ids: $columnas) { id text }`
+const CAMPOS = `id name board { id } column_values(ids: $columnas) { id text ... on BoardRelationValue { linked_item_ids } }`
 
 /** El texto de un `dropdown` son las etiquetas separadas por coma. */
 const lista = (texto: string): string[] =>
@@ -71,6 +78,14 @@ function aPerfil(item: ItemCrudo): Perfil {
     tipoUsuario: textoDe(c, COL_LISTA_BLANCA.tipoUsuario),
     autenticadorDesactivado:
       textoDe(c, COL_LISTA_BLANCA.desactivarAutenticador) === ETIQUETA.AUTENTICADOR_DESACTIVADO,
+    rolConcesionario: lista(textoDe(c, COL_LISTA_BLANCA.rolConcesionario)),
+    idTeamConcesionario: textoDe(c, COL_LISTA_BLANCA.idTeamConcesionario).trim(),
+    nombreTeamConcesionario: textoDe(c, COL_LISTA_BLANCA.nombreTeamConcesionario).trim(),
+    concesionarioIds: (
+      (c.find((x) => x.id === COL_LISTA_BLANCA.concesionario) as
+        | (ColumnaTexto & { linked_item_ids?: string[] | null })
+        | undefined)?.linked_item_ids ?? []
+    ).map(String),
   }
 }
 

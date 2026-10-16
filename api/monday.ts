@@ -33,6 +33,19 @@ import {
   esCuentaAutomatica,
 } from '../src/services/monday/cuentaAutomatica'
 import { COL_CRM_CUENTA } from '../src/services/monday/columns'
+import {
+  alcanceDe,
+  asignacionAlCrear,
+  conColumnasDeAlcance,
+  filtrarRespuesta,
+  itemDeLaOperacion,
+  LECTURAS_CON_ALCANCE,
+  problemaDeEscrituraDePedido,
+  SOBRE_UN_ITEM,
+  veElItem,
+  type Alcance,
+} from '../src/services/monday/alcance'
+import { esDeAdministracion } from './_seguridad/modulos'
 
 const API = 'https://api.monday.com/v2'
 const API_VERSION = '2024-10'
@@ -133,6 +146,50 @@ async function reglaDeCuentaAutomatica(
   return es ? null : 'Sólo se pueden borrar las cuentas que creó sola la automatización de monday.'
 }
 
+/**
+ * Qué ve y a nombre de quién escribe cada uno (`src/services/monday/alcance.ts`).
+ *
+ * Los tableros del workspace Concesionarios son de todos los concesionarios. Esto es lo que hace
+ * que cada uno vea sólo lo suyo y que lo que carga quede a su nombre, y vive acá y no en la
+ * pantalla: una pantalla que filtra es una cortina, cualquiera puede pedir el dato igual.
+ *
+ * Antes de la consulta: agrega las columnas que hacen falta para filtrar, firma las altas con el
+ * comercial y el team de la Lista Blanca, controla los pedidos y, en las operaciones sobre un ítem
+ * que ya existe, que ese ítem sea de los que ve. Devuelve el rechazo, o las variables listas.
+ */
+export async function aplicarAlcance(
+  operacion: string,
+  variables: Record<string, unknown>,
+  alcance: Alcance,
+  consultar: (q: string, v: Record<string, unknown>) => Promise<{ data?: Record<string, unknown> }>,
+): Promise<{ rechazo: string } | { variables: Record<string, unknown> }> {
+  let v = conColumnasDeAlcance(operacion, variables)
+
+  const problema = problemaDeEscrituraDePedido(operacion, v.valores, alcance)
+  if (problema) return { rechazo: problema }
+
+  const extra = asignacionAlCrear(operacion, alcance)
+  if (Object.keys(extra).length > 0 && typeof v.valores === 'string') {
+    v = { ...v, valores: JSON.stringify({ ...(JSON.parse(v.valores) as object), ...extra }) }
+  }
+
+  const sobre = SOBRE_UN_ITEM[operacion]
+  if (sobre && alcance.tipo !== 'todo') {
+    const item = itemDeLaOperacion(operacion, v)
+    const r = await consultar(
+      `query ($ids: [ID!], $cols: [String!]) {
+         items(ids: $ids) { column_values(ids: $cols) { id value ... on BoardRelationValue { linked_item_ids } } }
+       }`,
+      { ids: [item], cols: sobre.regla.columnas },
+    )
+    const items = (r.data?.items ?? []) as { column_values?: { id: string; value?: string | null }[] }[]
+    if (!items[0] || !veElItem(operacion, items[0].column_values ?? [], alcance)) {
+      return { rechazo: 'No tenés acceso a ese ítem.' }
+    }
+  }
+  return { variables: v }
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return error(405, 'Método no permitido.')
 
@@ -189,6 +246,12 @@ export default async function handler(req: Request): Promise<Response> {
     (await reglaDeCuentaAutomatica(pedido.operacion, variables, consultar))
   if (problema) return error(400, problema)
 
+  const nombreOperacion = String(pedido.operacion)
+  const alcance = alcanceDe({ ...paso.perfil, esAdministracion: esDeAdministracion(paso.perfil) })
+  const conAlcance = await aplicarAlcance(nombreOperacion, variables, alcance, consultar)
+  if ('rechazo' in conAlcance) return error(403, conAlcance.rechazo)
+  variables = conAlcance.variables
+
   const res = await fetch(API, {
     method: 'POST',
     headers: {
@@ -199,6 +262,15 @@ export default async function handler(req: Request): Promise<Response> {
     },
     body: JSON.stringify({ query, variables }),
   })
+
+  /* Las listas se filtran antes de salir: lo que no ve, no viaja. */
+  if (LECTURAS_CON_ALCANCE[nombreOperacion] && alcance.tipo !== 'todo' && res.ok) {
+    const cuerpo = (await res.json()) as Parameters<typeof filtrarRespuesta>[1]
+    return new Response(JSON.stringify(filtrarRespuesta(nombreOperacion, cuerpo, alcance)), {
+      status: res.status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   return new Response(await res.text(), {
     status: res.status,

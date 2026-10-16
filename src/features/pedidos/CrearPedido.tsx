@@ -18,7 +18,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Desplegable } from '@/components/ui/Desplegable'
 import { ZonaArchivo } from '@/components/ui/ZonaArchivo'
 import { useSalidaProtegida } from '@/hooks/useSalidaProtegida'
-import { concesionariosElegibles, type EquipoMonday } from '@/lib/concesionario'
+import {
+  concesionariosElegibles,
+  type ConcesionarioPropio,
+  type EquipoMonday,
+} from '@/lib/concesionario'
 import { aNumero, importe as aMoneda, pesoArchivo } from '@/lib/format'
 import { descuentoTotalEnPorcentaje, totalesDePedido, type DescuentoConfigurado } from '@/lib/precios'
 import {
@@ -131,6 +135,8 @@ const PASOS = ['El pedido', 'Los tractores', 'El pago', 'Revisar y mandar']
 interface Props {
   /** Sus equipos de monday: de ahí sale de qué concesionario es. */
   equipos: EquipoMonday[]
+  /** Su concesionario según la Lista Blanca: manda sobre los equipos de monday. */
+  propio?: ConcesionarioPropio
   /** Administración carga a nombre de cualquier concesionario. */
   esAdministracion: boolean
   /** El usuario de monday que carga. Queda como comercial del pedido y recibe los avisos. */
@@ -139,7 +145,7 @@ interface Props {
   onIrAMisPedidos: () => void
 }
 
-export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrAMisPedidos }: Props) {
+export function CrearPedido({ equipos, propio, esAdministracion, comercialId = '', onIrAMisPedidos }: Props) {
   const [paso, setPaso] = useState(1)
   const [cuentas, setCuentas] = useState<CuentaCrm[]>([])
   const [catalogo, setCatalogo] = useState<ProductoDeCatalogo[]>([])
@@ -209,8 +215,8 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
   /* Los concesionarios que puede usar: el suyo (por su equipo de monday) o todos si es de
      Administración. Con uno solo, queda elegido. */
   const elegibles = useMemo(
-    () => concesionariosElegibles(cuentas, equipos, esAdministracion),
-    [cuentas, equipos, esAdministracion],
+    () => concesionariosElegibles(cuentas, equipos, esAdministracion, propio),
+    [cuentas, equipos, esAdministracion, propio],
   )
 
   useEffect(() => {

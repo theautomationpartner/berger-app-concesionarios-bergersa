@@ -15,6 +15,7 @@
 import { MalConfigurado, NoAutorizado, verificarSesion } from '../_guard'
 import { AccesoDenegado, exigirSesionApp, SesionRequerida } from './acceso'
 import { ErrorDeConfiguracion } from './cripto'
+import type { Perfil } from './listaBlanca'
 import type { Modulo } from './modulos'
 import { ipDe, registrar } from './registro'
 
@@ -35,6 +36,8 @@ const SIN_ACCESO = 'No tenés acceso a esta aplicación. Contactá al administra
 export interface Paso {
   rechazo?: undefined
   modulos: Modulo[]
+  /** Su fila de la Lista Blanca, leída en este mismo pedido. Decide qué ítems ve (`alcance.ts`). */
+  perfil: Perfil
 }
 
 /** Rechazo: el pedido no sigue y esta es la respuesta que se devuelve tal cual. */
@@ -65,8 +68,8 @@ export async function porton(req: Request): Promise<Paso | Rechazo> {
   }
 
   try {
-    const { modulos } = await exigirSesionApp(req, sesionMonday, ip)
-    return { modulos }
+    const { modulos, perfil } = await exigirSesionApp(req, sesionMonday, ip)
+    return { modulos, perfil }
   } catch (e) {
     if (e instanceof SesionRequerida) {
       return { rechazo: error(403, 'Tu sesión venció. Volvé a ingresar el código.', 'SESION_REQUERIDA') }

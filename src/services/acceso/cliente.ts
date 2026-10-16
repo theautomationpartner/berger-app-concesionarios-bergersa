@@ -6,6 +6,7 @@
  * lugar donde no se puede saltear.
  */
 import type { ModuloApp } from '@/services/monday/operaciones'
+import type { ConcesionarioPropio } from '@/lib/concesionario'
 import { sesionDelDia } from './sesionDelDia'
 
 export interface PerfilIngreso {
@@ -30,6 +31,8 @@ export interface PerfilIngreso {
    * el mismo nombre que su cuenta: así se sabe de qué concesionario es quien carga.
    */
   equiposMonday?: { id: string; nombre: string }[]
+  /** Si es de un concesionario: su rol, su cuenta y su team, según la Lista Blanca. */
+  concesionario?: ConcesionarioPropio
 }
 
 /** Lo que devuelve el servidor, ya traducido a un paso de la pantalla. */

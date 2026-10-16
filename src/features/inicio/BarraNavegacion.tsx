@@ -95,6 +95,8 @@ function SelectorNav({ etiqueta, actual, opciones, onElegir }: PropsSelector) {
 interface Props {
   ruta: Ruta
   onIr: (ruta: Ruta) => void
+  /** Operaciones que este perfil no tiene: no se ofrecen (un comercial no tiene PEDIDOS). */
+  ocultas?: OperacionPrincipal[]
 }
 
 const comoOpcion = (o: { id: string; titulo: string; icono: string }): OpcionNav => ({
@@ -103,7 +105,7 @@ const comoOpcion = (o: { id: string; titulo: string; icono: string }): OpcionNav
   icono: o.icono,
 })
 
-export function BarraNavegacion({ ruta, onIr }: Props) {
+export function BarraNavegacion({ ruta, onIr, ocultas = [] }: Props) {
   const principal = OPERACIONES_PRINCIPALES.find((o) => o.id === ruta.principal) ?? null
   const pantalla = PANTALLAS_PEDIDOS.find((o) => o.id === ruta.pedidos) ?? null
 
@@ -126,7 +128,7 @@ export function BarraNavegacion({ ruta, onIr }: Props) {
         <SelectorNav
           etiqueta="Operación:"
           actual={comoOpcion(principal)}
-          opciones={OPERACIONES_PRINCIPALES.map(comoOpcion)}
+          opciones={OPERACIONES_PRINCIPALES.filter((o) => !ocultas.includes(o.id)).map(comoOpcion)}
           onElegir={(v) => onIr({ ...RUTA_INICIO, principal: v as OperacionPrincipal })}
         />
       )}

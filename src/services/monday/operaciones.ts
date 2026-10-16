@@ -691,16 +691,30 @@ const leerTablero = (tablero: string) => (v: Record<string, unknown>) => ({
   limite: entero(v.limite, 'limite', 1, 500),
 })
 
+/**
+ * Las cuentas y los contactos propios, con el JSON crudo de cada columna: de ahí salen los ids del
+ * comercial y del team, que es por lo que el servidor filtra qué ve cada uno (`alcance.ts`).
+ */
+const CONSULTA_CRM_CON_VALOR = `
+  query ($tablero: ID!, $columnas: [String!], $limite: Int!) {
+    boards(ids: [$tablero]) {
+      items_page(limit: $limite) {
+        items { id name column_values(ids: $columnas) { ${CAMPOS_COLUMNA_CON_VALOR} } }
+      }
+    }
+  }
+`
+
 const OPS_CRM_PROPIO = {
   cuentasCrmPropio: {
     modulo: 'pedidos' as const,
-    query: CONSULTA_ITEMS_CRM,
+    query: CONSULTA_CRM_CON_VALOR,
     validar: leerTablero(TABLEROS_CRM.cuentas),
   },
 
   contactosCrmPropio: {
     modulo: 'pedidos' as const,
-    query: CONSULTA_ITEMS_CRM,
+    query: CONSULTA_CRM_CON_VALOR,
     validar: leerTablero(TABLEROS_CRM.contactos),
   },
 

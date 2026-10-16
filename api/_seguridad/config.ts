@@ -68,6 +68,17 @@ export const COL_LISTA_BLANCA = {
   idTeam: 'text_mm7w9a21',
   tipoUsuario: 'color_mm728j0d',
   desactivarAutenticador: 'color_mm779m2m',
+  /**
+   * Lo que hace de alguien parte de UN concesionario, cuando su Team es "Concesionario". Decide
+   * qué ve del CRM propio y si puede cargar pedidos (ver `src/services/monday/alcance.ts`).
+   */
+  /** Comercial o Administrador. El Administrador está en el team del concesionario; el comercial, no. */
+  rolConcesionario: 'dropdown_mm7zgb6h',
+  /** Id del team de monday del concesionario: firma los pedidos y los ítems del CRM. */
+  idTeamConcesionario: 'text_mm86gbn2',
+  nombreTeamConcesionario: 'text_mm7xyfxf',
+  /** La cuenta del concesionario en 🌐Cuentas de BERGER. */
+  concesionario: 'board_relation_mm86szq5',
 } as const
 
 /**

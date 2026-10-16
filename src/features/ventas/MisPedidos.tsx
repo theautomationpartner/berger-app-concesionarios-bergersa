@@ -12,7 +12,11 @@
  * Administración los ve todos.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { concesionariosElegibles, type EquipoMonday } from '@/lib/concesionario'
+import {
+  concesionariosElegibles,
+  type ConcesionarioPropio,
+  type EquipoMonday,
+} from '@/lib/concesionario'
 import { ESTADO_PEDIDO } from '@/services/monday/columns'
 import { cuentasDelCrm } from '@/services/monday/crm'
 import {
@@ -37,12 +41,14 @@ type Vista = 'lista' | 'novedades'
 
 interface Props {
   equipos: EquipoMonday[]
+  /** Su concesionario según la Lista Blanca: manda sobre los equipos de monday. */
+  propio?: ConcesionarioPropio
   esAdministracion: boolean
   /** Su usuario de monday: las novedades que lo mencionan son las suyas. */
   usuarioId?: string
 }
 
-export function MisPedidos({ equipos, esAdministracion, usuarioId = '' }: Props) {
+export function MisPedidos({ equipos, propio, esAdministracion, usuarioId = '' }: Props) {
   const [pedidos, setPedidos] = useState<PedidoLeido[]>([])
   const [unidades, setUnidades] = useState<UnidadLeida[]>([])
   const [novedades, setNovedades] = useState<Novedad[]>([])
@@ -62,7 +68,7 @@ export function MisPedidos({ equipos, esAdministracion, usuarioId = '' }: Props)
     setError(null)
     try {
       const [ps, us, cuentas] = await Promise.all([pedidosCargados(), unidadesDeVenta(), cuentasDelCrm()])
-      const mias = concesionariosElegibles(cuentas, equipos, esAdministracion).map((c) => c.cuenta.id)
+      const mias = concesionariosElegibles(cuentas, equipos, esAdministracion, propio).map((c) => c.cuenta.id)
       setPedidos(ps)
       setUnidades(us)
       setMisCuentas(mias)
@@ -73,7 +79,7 @@ export function MisPedidos({ equipos, esAdministracion, usuarioId = '' }: Props)
     } finally {
       setCargando(false)
     }
-  }, [equipos, esAdministracion, usuarioId])
+  }, [equipos, esAdministracion, usuarioId, propio])
 
   useEffect(() => {
     void recargar()

@@ -13,6 +13,8 @@
  * El formulario se arma de nuevo en vez de retocar el que llegó: así el `boundary` lo calcula
  * `fetch` y no hay que confiar en el `Content-Type` del cliente.
  */
+import { alcanceDe, puedeCargarPedidos } from '../src/services/monday/alcance'
+import { esDeAdministracion } from './_seguridad/modulos'
 import { porton } from './_seguridad/porton'
 import {
   MUTATION_ARCHIVO,
@@ -66,6 +68,11 @@ export default async function handler(req: Request): Promise<Response> {
   /* Cada columna de archivo pertenece a un módulo, y quien sube tiene que tenerlo. */
   if (!paso.modulos.includes(destino.modulo as (typeof paso.modulos)[number])) {
     return error(403, 'No tenés acceso a esta aplicación. Contactá al administrador.')
+  }
+  /* El único archivo es el contrato del pedido, y los pedidos los carga el administrador del
+     concesionario (o Administración): un comercial no tiene por qué subirlo. */
+  if (!puedeCargarPedidos(alcanceDe({ ...paso.perfil, esAdministracion: esDeAdministracion(paso.perfil) }))) {
+    return error(403, 'Sólo el administrador del concesionario puede cargar pedidos.')
   }
 
   /*

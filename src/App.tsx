@@ -12,6 +12,7 @@ import { CrearPedido } from '@/features/pedidos/CrearPedido'
 import { MisPedidos } from '@/features/ventas/MisPedidos'
 import { useAccesoMonday } from '@/hooks/useAccesoMonday'
 import { motivoParaNoSalir } from '@/hooks/useSalidaProtegida'
+import { esComercialDeConcesionario } from '@/lib/concesionario'
 import {
   OPERACIONES_PRINCIPALES,
   PANTALLAS_PEDIDOS,
@@ -39,6 +40,11 @@ const VISTA_PREVIA_INGRESO =
 const CONCESIONARIO_DEV = import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('concesionario')
   : null
+
+/** En desarrollo, `&rol=Comercial` entra como comercial de ese concesionario (sin pedidos). */
+const ROL_DEV = import.meta.env.DEV
+  ? (new URLSearchParams(window.location.search).get('rol') ?? 'Administrador')
+  : 'Administrador'
 
 /**
  * Vista de tablero de CONCESIONARIOS BERGER S.A. — la app de los concesionarios, instalada en el
@@ -71,6 +77,7 @@ export function App() {
                 nombre: CONCESIONARIO_DEV,
                 esAdministracion: false,
                 equiposMonday: [{ id: '', nombre: CONCESIONARIO_DEV }],
+                concesionario: { rol: [ROL_DEV], teamId: '', teamNombre: CONCESIONARIO_DEV, cuentaIds: [] },
               }
             : { id: 'desarrollo', nombre: 'Desarrollo local', esAdministracion: true, equiposMonday: [] },
           modulos: [...MODULOS_APP],
@@ -113,10 +120,15 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
   /* El concesionario tiene sólo el módulo `pedidos`, y con él las tres operaciones —sus pedidos y
      su CRM—; si el servidor no se lo dio, no hay nada que mostrarle. */
   const puedePedidos = sesion.modulos.includes('pedidos')
+  /* Los pedidos los carga y los sigue el administrador del concesionario. El comercial trabaja
+     sólo su CRM: no se le ofrece la operación (y el servidor tampoco le deja cargar ni leer pedidos). */
+  const conPedidos = puedePedidos && !esComercialDeConcesionario(sesion.perfil)
 
   const barra = (
     <BarraMarca
-      navegacion={<BarraNavegacion ruta={ruta} onIr={navegar} />}
+      navegacion={
+        <BarraNavegacion ruta={ruta} onIr={navegar} ocultas={conPedidos ? [] : ['pedidos']} />
+      }
       perfil={sesion.perfil.nombre}
       onSalir={
         import.meta.env.DEV && !VISTA_PREVIA_INGRESO
@@ -169,7 +181,9 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
         <PanelOpciones
           titulo="¿Qué vas a hacer?"
           detalle="Elegí la operación."
-          opciones={OPERACIONES_PRINCIPALES.filter(() => puedePedidos).map(
+          opciones={OPERACIONES_PRINCIPALES.filter((o) =>
+            o.id === 'pedidos' ? conPedidos : puedePedidos,
+          ).map(
             (o) => ({ ...o, cuantas: o.id === 'pedidos' ? PANTALLAS_PEDIDOS.length : undefined }),
           )}
           onElegir={(id) => navegar({ ...RUTA_INICIO, principal: id })}
@@ -185,18 +199,20 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
         />
       )}
 
-      {ruta.principal === 'pedidos' && ruta.pedidos === 'crear' && puedePedidos && (
+      {ruta.principal === 'pedidos' && ruta.pedidos === 'crear' && conPedidos && (
         <CrearPedido
           equipos={sesion.perfil.equiposMonday ?? []}
+          propio={sesion.perfil.concesionario}
           esAdministracion={Boolean(sesion.perfil.esAdministracion)}
           comercialId={sesion.perfil.usuarioId}
           onIrAMisPedidos={() => setRuta({ principal: 'pedidos', pedidos: 'mios' })}
         />
       )}
 
-      {ruta.principal === 'pedidos' && ruta.pedidos === 'mios' && puedePedidos && (
+      {ruta.principal === 'pedidos' && ruta.pedidos === 'mios' && conPedidos && (
         <MisPedidos
           equipos={sesion.perfil.equiposMonday ?? []}
+          propio={sesion.perfil.concesionario}
           esAdministracion={Boolean(sesion.perfil.esAdministracion)}
           usuarioId={sesion.perfil.usuarioId}
         />

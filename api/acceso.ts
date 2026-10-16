@@ -85,6 +85,14 @@ const publico = (p: Perfil) => ({
   /** Administración carga a nombre de cualquier concesionario; un concesionario, sólo del suyo. */
   esAdministracion: esDeAdministracion(p),
   equiposMonday: p.equiposMonday ?? [],
+  /* Lo que la pantalla necesita para elegir sola la cuenta del pedido y para no ofrecerle pedidos
+     a un comercial. Qué ve y qué puede escribir lo vuelve a decidir el servidor en cada pedido. */
+  concesionario: {
+    rol: p.rolConcesionario,
+    teamId: p.idTeamConcesionario,
+    teamNombre: p.nombreTeamConcesionario,
+    cuentaIds: p.concesionarioIds,
+  },
 })
 
 export default async function handler(req: Request): Promise<Response> {

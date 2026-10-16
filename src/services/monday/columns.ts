@@ -1373,6 +1373,10 @@ export const COL_CRM_CUENTA = {
   dominio: 'company_domain',
   /** De doble vía con `COL_CRM_CONTACTO.cuenta`. */
   contactos: 'account_contact',
+  /** Quién la cargó (persona). La pone el servidor al crear: es lo que ve un comercial. */
+  comercial: 'multiple_person_mm86s8e9',
+  /** El team del concesionario. La pone el servidor al crear: es lo que ve su administrador. */
+  concesionario: 'multiple_person_mm865v6p',
 } as const
 
 /** 📌Contactos (18434763778). Sin categoría. */
@@ -1388,6 +1392,9 @@ export const COL_CRM_CONTACTO = {
   comentarios: 'long_text4',
   cuenta: 'contact_account',
   fechaAlta: 'date_mm86ps4x',
+  /** Quién lo cargó y de qué concesionario es: igual que en 💼Cuentas. */
+  comercial: 'multiple_person_mm86sp2p',
+  concesionario: 'multiple_person_mm86k5tr',
 } as const
 
 /**
