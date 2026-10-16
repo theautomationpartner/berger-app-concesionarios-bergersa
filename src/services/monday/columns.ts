@@ -1335,3 +1335,85 @@ export const POLITICA_CONTADO = { ESTANDAR: 'Política Estándar', ESPECIAL: 'Op
  * mayúsculas.
  */
 export const esContado = (pago: string): boolean => pago.trim().toUpperCase() === 'CONTADO'
+
+/* ------------------------------------------------------------------ *
+ * El CRM propio de los concesionarios: cuentas, contactos y actividades
+ * ------------------------------------------------------------------ */
+
+/**
+ * Los tres tableros del CRM del workspace Concesionarios BERGER SA.
+ *
+ * NO son los de BERGER S.A.: el cliente final de un pedido sigue saliendo de 🌐Cuentas de BERGER
+ * (`TABLEROS.cuentas`), porque es a quien BERGER le factura. Éstos son los de la gestión comercial
+ * del propio concesionario. Las columnas se llaman igual que en el CRM de BERGER, pero los IDs son
+ * otros, y faltan algunas —categorías, crédito, fecha de alta de la cuenta—.
+ */
+export const TABLEROS_CRM = {
+  cuentas: '18434763782',
+  contactos: '18434763778',
+  actividades: '18434763777',
+} as const
+
+/** 💼Cuentas (18434763782). Sin categoría, sin crédito y sin fecha de alta. */
+export const COL_CRM_CUENTA = {
+  tipoPersona: 'color_mm86h02g',
+  /** Toda cuenta nace Activo. */
+  estado: 'color_mm86r44a',
+  clasificacion: 'color_mm865ky',
+  cuit: 'text_mm86k6yj',
+  condicionFiscal: 'color_mm86ncn9',
+  direccion: 'location_mm86yrsj',
+  direccionTexto: 'text_mm86rk2y',
+  ciudad: 'text_mm86tdj',
+  provincia: 'text_mm863q88',
+  pais: 'country_mm86qfgk',
+  descripcion: 'company_description',
+  /** De doble vía con `COL_CRM_CONTACTO.cuenta`. */
+  contactos: 'account_contact',
+} as const
+
+/** 📌Contactos (18434763778). Sin categoría. */
+export const COL_CRM_CONTACTO = {
+  nombres: 'text_mm865b03',
+  apellidos: 'text_mm862aeq',
+  /** Un sector, un mail general: con esto, nombre y apellido sobran. */
+  otro: 'text_mm86ny5v',
+  estado: 'color_mm86x9nz',
+  email: 'contact_email',
+  pais: 'country_mm86by25',
+  whatsapp: 'contact_phone',
+  comentarios: 'long_text4',
+  cuenta: 'contact_account',
+  fechaAlta: 'date_mm86ps4x',
+} as const
+
+/**
+ * 🗓️Actividades (18434763777).
+ *
+ * OJO con las conexiones: hay dos hacia cada tablero. "Cuentas" y "Contactos" son las que se
+ * llaman como en BERGER, pero son de UNA vía: lo que se conecta ahí no aparece en la columna
+ * 🗓️Actividades de la cuenta. Las de doble vía son "link to 💼Cuentas" y "link to Contactos". La
+ * app escribe las dos y lee las primeras.
+ */
+export const COL_CRM_ACTIVIDAD = {
+  tipo: 'activity_type',
+  cuenta: 'board_relation_mm851f7p',
+  contactos: 'board_relation_mm85c2k7',
+  /** Las de doble vía: hacen que la actividad se vea desde la cuenta y desde el contacto. */
+  cuentaDobleVia: 'board_relation_mm866eg1',
+  contactosDobleVia: 'board_relation_mm86px5q',
+  responsable: 'activity_owner',
+  fecha: 'activity_start_time',
+  estado: 'activity_status',
+  descripcion: 'long_text_mm85q9a5',
+} as const
+
+/** Etiquetas que la app fija al crear. Ojo: acá la cuenta nace "Activo", no "Activa". */
+export const CRM_PROPIO = {
+  CUENTA_ACTIVA: 'Activo',
+  CONTACTO_ACTIVO: 'Activo',
+} as const
+
+/** La categoría de cuenta de concesionario. Este CRM no tiene categorías: no se usa, pero el
+    formulario compartido con BERGER la pregunta. */
+export const CATEGORIA_CONCESIONARIO = 'Concesionario'

@@ -19,7 +19,17 @@
  * falla nada más que en producción, que es donde peor se detecta.
  */
 
-import { COL_CUENTA, COL_PEDIDO, COL_PEDIDO_SUB, COL_VENTA, TABLEROS } from './columns'
+import {
+  COL_CRM_ACTIVIDAD,
+  COL_CRM_CONTACTO,
+  COL_CRM_CUENTA,
+  COL_CUENTA,
+  COL_PEDIDO,
+  COL_PEDIDO_SUB,
+  COL_VENTA,
+  TABLEROS,
+  TABLEROS_CRM,
+} from './columns'
 
 /**
  * Los módulos de la app: dos poblaciones distintas, con permisos distintos.
@@ -60,6 +70,18 @@ export type NombreOperacion =
   | 'cuentasDelCrm'
   | 'etiquetasDelCrm'
   | 'crearCuentaCrm'
+  /* El CRM propio del concesionario: sus cuentas, contactos y actividades. */
+  | 'cuentasCrmPropio'
+  | 'contactosCrmPropio'
+  | 'etiquetasCrmPropio'
+  | 'crearCuentaCrmPropio'
+  | 'actualizarCuentaCrmPropio'
+  | 'crearContactoCrmPropio'
+  | 'actualizarContactoCrmPropio'
+  | 'actividadesDelTablero'
+  | 'crearActividadCrm'
+  | 'completarActividadCrm'
+  | 'etiquetasDeActividad'
 
 export type Variables = Record<string, unknown>
 
@@ -540,11 +562,263 @@ const OPS_CRM = {
 }
 
 /* ------------------------------------------------------------------ *
+ * El CRM propio del concesionario
+ *
+ * Las mismas operaciones que Cuentas y contactos y Actividades de la app de BERGER S.A., sobre los
+ * tableros del workspace Concesionarios BERGER SA. Son del módulo `pedidos` porque es el único
+ * que tiene esta app y lo reciben las mismas personas: el comercial del concesionario y
+ * Administración de BERGER.
+ * ------------------------------------------------------------------ */
+
+/** Lo único que la app escribe al dar de alta una cuenta propia. */
+const COLUMNAS_DE_CUENTA_PROPIA = new Set<string>([
+  COL_CRM_CUENTA.tipoPersona,
+  COL_CRM_CUENTA.estado,
+  COL_CRM_CUENTA.clasificacion,
+  COL_CRM_CUENTA.cuit,
+  COL_CRM_CUENTA.condicionFiscal,
+  COL_CRM_CUENTA.direccionTexto,
+  COL_CRM_CUENTA.ciudad,
+  COL_CRM_CUENTA.provincia,
+  COL_CRM_CUENTA.pais,
+  COL_CRM_CUENTA.descripcion,
+  COL_CRM_CUENTA.contactos,
+])
+
+/** La edición, sin el estado: nace Activo y la baja se hace en monday. */
+const COLUMNAS_DE_CUENTA_PROPIA_EDITABLES = new Set<string>(
+  [...COLUMNAS_DE_CUENTA_PROPIA].filter((c) => c !== COL_CRM_CUENTA.estado),
+)
+
+const COLUMNAS_DE_CONTACTO_PROPIO = new Set<string>([
+  COL_CRM_CONTACTO.nombres,
+  COL_CRM_CONTACTO.apellidos,
+  COL_CRM_CONTACTO.otro,
+  COL_CRM_CONTACTO.estado,
+  COL_CRM_CONTACTO.email,
+  COL_CRM_CONTACTO.pais,
+  COL_CRM_CONTACTO.whatsapp,
+  COL_CRM_CONTACTO.comentarios,
+  COL_CRM_CONTACTO.cuenta,
+  COL_CRM_CONTACTO.fechaAlta,
+])
+
+/** La edición, sin la fecha de alta ni el estado. */
+const COLUMNAS_DE_CONTACTO_PROPIO_EDITABLES = new Set<string>(
+  [...COLUMNAS_DE_CONTACTO_PROPIO].filter(
+    (c) => c !== COL_CRM_CONTACTO.fechaAlta && c !== COL_CRM_CONTACTO.estado,
+  ),
+)
+
+/**
+ * Lo que se escribe al crear una actividad. El responsable lo pone la app con el usuario que tiene
+ * la pantalla abierta: dejar escribirlo sería cargar actividades a nombre de otro.
+ */
+const COLUMNAS_DE_ACTIVIDAD = new Set<string>([
+  COL_CRM_ACTIVIDAD.tipo,
+  COL_CRM_ACTIVIDAD.cuenta,
+  COL_CRM_ACTIVIDAD.cuentaDobleVia,
+  COL_CRM_ACTIVIDAD.contactos,
+  COL_CRM_ACTIVIDAD.contactosDobleVia,
+  COL_CRM_ACTIVIDAD.responsable,
+  COL_CRM_ACTIVIDAD.fecha,
+  COL_CRM_ACTIVIDAD.estado,
+  COL_CRM_ACTIVIDAD.descripcion,
+])
+
+/**
+ * Las actividades, con el JSON crudo de cada columna: de ahí sale el id del responsable, que es
+ * por lo que se filtra "lo mío". Filtrar por el nombre escrito juntaría a dos que se llaman igual.
+ */
+const CONSULTA_ACTIVIDADES = `
+  query ($tablero: ID!, $columnas: [String!], $limite: Int!) {
+    boards(ids: [$tablero]) {
+      items_page(limit: $limite) {
+        items {
+          id
+          name
+          column_values(ids: $columnas) {
+            id
+            text
+            value
+            ... on BoardRelationValue { linked_item_ids display_value }
+          }
+        }
+      }
+    }
+  }
+`
+
+const MUTACION_CREAR = `
+  mutation ($tablero: ID!, $nombre: String!, $valores: JSON!) {
+    create_item(board_id: $tablero, item_name: $nombre, column_values: $valores) { id name }
+  }
+`
+
+/** Cambiar columnas y el nombre del item en una sola mutación, para que no quede a medias. */
+const MUTACION_EDITAR = `
+  mutation ($tablero: ID!, $item: ID!, $nombre: String!, $valores: JSON!) {
+    cambiar: change_multiple_column_values(
+      board_id: $tablero
+      item_id: $item
+      column_values: $valores
+    ) { id }
+    renombrar: change_simple_column_value(
+      board_id: $tablero
+      item_id: $item
+      column_id: "name"
+      value: $nombre
+    ) { id name }
+  }
+`
+
+const ETIQUETAS = `
+  query ($tablero: ID!, $columnas: [String!]) {
+    boards(ids: [$tablero]) { columns(ids: $columnas) { id settings_str } }
+  }
+`
+
+const leerTablero = (tablero: string) => (v: Record<string, unknown>) => ({
+  tablero,
+  columnas: idsDeColumnas(v.columnas),
+  limite: entero(v.limite, 'limite', 1, 500),
+})
+
+const OPS_CRM_PROPIO = {
+  cuentasCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: CONSULTA_ITEMS_CRM,
+    validar: leerTablero(TABLEROS_CRM.cuentas),
+  },
+
+  contactosCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: CONSULTA_ITEMS_CRM,
+    validar: leerTablero(TABLEROS_CRM.contactos),
+  },
+
+  /** Las etiquetas de los dos tableros, en una consulta. */
+  etiquetasCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: `
+      query ($tableros: [ID!], $columnasCuenta: [String!], $columnasContacto: [String!]) {
+        boards(ids: $tableros) {
+          id
+          cuenta: columns(ids: $columnasCuenta) { id settings_str }
+          contacto: columns(ids: $columnasContacto) { id settings_str }
+        }
+      }
+    `,
+    validar: (v: Record<string, unknown>) => ({
+      tableros: [TABLEROS_CRM.cuentas, TABLEROS_CRM.contactos],
+      columnasCuenta: idsDeColumnas(v.columnasCuenta),
+      columnasContacto: idsDeColumnas(v.columnasContacto),
+    }),
+  },
+
+  crearCuentaCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: MUTACION_CREAR,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.cuentas,
+      nombre: nombre(v.nombre),
+      valores: valoresAcotados(v.valores, COLUMNAS_DE_CUENTA_PROPIA, 'el alta de una cuenta'),
+    }),
+  },
+
+  actualizarCuentaCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: MUTACION_EDITAR,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.cuentas,
+      item: idMonday(v.item, 'item'),
+      nombre: nombre(v.nombre),
+      valores: valoresAcotados(
+        v.valores,
+        COLUMNAS_DE_CUENTA_PROPIA_EDITABLES,
+        'la edición de una cuenta',
+      ),
+    }),
+  },
+
+  crearContactoCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: MUTACION_CREAR,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.contactos,
+      nombre: nombre(v.nombre),
+      valores: valoresAcotados(v.valores, COLUMNAS_DE_CONTACTO_PROPIO, 'el alta de un contacto'),
+    }),
+  },
+
+  actualizarContactoCrmPropio: {
+    modulo: 'pedidos' as const,
+    query: MUTACION_EDITAR,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.contactos,
+      item: idMonday(v.item, 'item'),
+      nombre: nombre(v.nombre),
+      valores: valoresAcotados(
+        v.valores,
+        COLUMNAS_DE_CONTACTO_PROPIO_EDITABLES,
+        'la edición de un contacto',
+      ),
+    }),
+  },
+
+  /** Las actividades del tablero. Quién ve cuáles lo decide el cliente, por el responsable. */
+  actividadesDelTablero: {
+    modulo: 'pedidos' as const,
+    query: CONSULTA_ACTIVIDADES,
+    validar: leerTablero(TABLEROS_CRM.actividades),
+  },
+
+  crearActividadCrm: {
+    modulo: 'pedidos' as const,
+    query: MUTACION_CREAR,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.actividades,
+      nombre: nombre(v.nombre),
+      valores: valoresAcotados(v.valores, COLUMNAS_DE_ACTIVIDAD, 'una actividad'),
+    }),
+  },
+
+  /** Darla por hecha: el estado y las observaciones de cómo se resolvió. Nada más. */
+  completarActividadCrm: {
+    modulo: 'pedidos' as const,
+    query: `
+      mutation ($tablero: ID!, $item: ID!, $valores: JSON!) {
+        change_multiple_column_values(board_id: $tablero, item_id: $item, column_values: $valores) { id }
+      }
+    `,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.actividades,
+      item: idMonday(v.item, 'item'),
+      valores: valoresAcotados(
+        v.valores,
+        new Set([COL_CRM_ACTIVIDAD.estado, COL_CRM_ACTIVIDAD.descripcion]),
+        'el cierre de una actividad',
+      ),
+    }),
+  },
+
+  etiquetasDeActividad: {
+    modulo: 'pedidos' as const,
+    query: ETIQUETAS,
+    validar: (v: Record<string, unknown>) => ({
+      tablero: TABLEROS_CRM.actividades,
+      columnas: idsDeColumnas(v.columnas),
+    }),
+  },
+}
+
+/* ------------------------------------------------------------------ *
  * El catálogo
  * ------------------------------------------------------------------ */
 
 export const OPERACIONES: Record<NombreOperacion, Operacion> = {
   ...OPS_CRM,
+  ...OPS_CRM_PROPIO,
 }
 
 /**

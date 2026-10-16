@@ -6,6 +6,8 @@ import { clienteVistaPrevia } from '@/features/acceso/clienteVistaPrevia'
 import { Ingreso, type SesionIngreso } from '@/features/acceso/Ingreso'
 import { BarraNavegacion } from '@/features/inicio/BarraNavegacion'
 import { PanelOpciones } from '@/features/inicio/PanelOpciones'
+import { Actividades } from '@/features/crm/Actividades'
+import { CuentasYContactos } from '@/features/crm/CuentasYContactos'
 import { CrearPedido } from '@/features/pedidos/CrearPedido'
 import { MisPedidos } from '@/features/ventas/MisPedidos'
 import { useAccesoMonday } from '@/hooks/useAccesoMonday'
@@ -108,8 +110,8 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
   }
   const navegar = (r: Ruta) => salirSiSePuede(() => setRuta(r))
 
-  /* El concesionario tiene sólo el módulo `pedidos`; si el servidor no se lo dio, no hay nada que
-     mostrarle. */
+  /* El concesionario tiene sólo el módulo `pedidos`, y con él las tres operaciones —sus pedidos y
+     su CRM—; si el servidor no se lo dio, no hay nada que mostrarle. */
   const puedePedidos = sesion.modulos.includes('pedidos')
 
   const barra = (
@@ -167,7 +169,7 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
         <PanelOpciones
           titulo="¿Qué vas a hacer?"
           detalle="Elegí la operación."
-          opciones={OPERACIONES_PRINCIPALES.filter((o) => o.id !== 'pedidos' || puedePedidos).map(
+          opciones={OPERACIONES_PRINCIPALES.filter(() => puedePedidos).map(
             (o) => ({ ...o, cuantas: o.id === 'pedidos' ? PANTALLAS_PEDIDOS.length : undefined }),
           )}
           onElegir={(id) => navegar({ ...RUTA_INICIO, principal: id })}
@@ -199,6 +201,10 @@ function AppAdentro({ sesion }: { sesion: SesionIngreso }) {
           usuarioId={sesion.perfil.usuarioId}
         />
       )}
+
+      {ruta.principal === 'clientes' && puedePedidos && <CuentasYContactos />}
+
+      {ruta.principal === 'actividades' && puedePedidos && <Actividades />}
 
       {saliendo && (
         <ConfirmarSalida
