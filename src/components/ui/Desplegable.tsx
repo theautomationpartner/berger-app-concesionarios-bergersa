@@ -27,6 +27,11 @@ interface Props {
    * Con esto el panel arranca invitando a escribir.
    */
   soloAlBuscar?: boolean
+  /**
+   * Sin la opción de volver a "sin definir". Para los campos que siempre tienen un valor —vienen
+   * preseteados y no pueden quedar vacíos—, como el Tipo de pedido.
+   */
+  sinVacio?: boolean
   id?: string
 }
 
@@ -53,6 +58,7 @@ export function Desplegable({
   bloqueado,
   buscable,
   soloAlBuscar,
+  sinVacio,
   id,
 }: Props) {
   const lista = useMemo(() => opciones.map(normalizar), [opciones])
@@ -106,13 +112,15 @@ export function Desplegable({
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setFoco((n) => Math.min(n + 1, visibles.length)) // el último índice es "(sin definir)"
+      // el último índice es "(sin definir)", salvo que no se ofrezca
+      setFoco((n) => Math.min(n + 1, sinVacio ? visibles.length - 1 : visibles.length))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setFoco((n) => Math.max(n - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      elegir(visibles[foco]?.valor ?? '')
+      const valor = visibles[foco]?.valor ?? ''
+      if (valor || !sinVacio) elegir(valor)
     } else if (e.key === 'Escape') {
       cerrar()
     }
@@ -189,6 +197,7 @@ export function Desplegable({
 
             {/* Volver a "sin definir" tiene que ser posible: una opción elegida por error queda
                 pegada si la única forma de sacarla es desde monday. */}
+            {!sinVacio && (
             <li>
               <button
                 type="button"
@@ -205,6 +214,7 @@ export function Desplegable({
                 </span>
               </button>
             </li>
+            )}
           </ul>
         </div>
       )}

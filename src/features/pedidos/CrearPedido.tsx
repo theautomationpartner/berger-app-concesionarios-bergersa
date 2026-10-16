@@ -121,6 +121,7 @@ const VACIO: AltaPedido = {
   plazo: '',
   conceptoPago: '',
   descuentoEspecial: null,
+  observacionEspecial: '',
   preciosClienteFinal: {},
   renglones: [],
 }
@@ -162,6 +163,8 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
   /** Lo que se está tipeando, tal cual: el número se lee de acá. */
   const [textoEspecial, setTextoEspecial] = useState('')
   const [textoPrecios, setTextoPrecios] = useState<Record<string, string>>({})
+  /** Se intentó seguir o mandar con la operatoria especial sin observaciones. */
+  const [errorObservacion, setErrorObservacion] = useState(false)
   const [detalle, setDetalle] = useState<ProductoDeCatalogo | null>(null)
   const [foto, setFoto] = useState(0)
 
@@ -260,6 +263,7 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
 
   /* La Operatoria Especial: tildada, se tipea el porcentaje entre 0 y el tope de Configuración. */
   const usaEspecial = datos.descuentoEspecial != null
+  const faltaObservacion = usaEspecial && contado && !concesion && !datos.observacionEspecial.trim()
   const especialInvalido =
     usaEspecial &&
     especial != null &&
@@ -327,6 +331,7 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
     setContrato(null)
     setTextoEspecial('')
     setTextoPrecios({})
+    setErrorObservacion(false)
     /* El concesionario queda: el próximo pedido casi siempre es del mismo. */
     setDatos({ ...VACIO, cuentaId: datos.cuentaId, cuentaNombre: datos.cuentaNombre, equipoId: datos.equipoId })
     /* Uno nuevo en concesión cambia la cuenta de las que quedan. */
@@ -334,6 +339,11 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
   }
 
   const mandar = async () => {
+    if (faltaObservacion) {
+      setErrorObservacion(true)
+      setErrorEnvio('Se requieren las observaciones para la operatoria especial.')
+      return
+    }
     setEnviando(true)
     setErrorEnvio(null)
     try {
@@ -575,30 +585,6 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
       (paso === 2 && datos.renglones.length > 0) ||
       (paso === 3 && (concesion || Boolean(pago)) && !especialInvalido && preciosOk))
 
-  /** Un selector de dos o tres opciones, como botones: se ve todo sin abrir nada. */
-  const segmentos = (
-    valor: string,
-    opciones: { valor: string; rotulo: string; bloqueado?: boolean; titulo?: string }[],
-    onCambiar: (v: string) => void,
-  ) => (
-    <span className="segmentos" role="radiogroup">
-      {opciones.map((o) => (
-        <button
-          key={o.valor}
-          type="button"
-          role="radio"
-          aria-checked={valor === o.valor}
-          className={`segmento${valor === o.valor ? ' segmento--si' : ''}`}
-          disabled={o.bloqueado}
-          title={o.titulo}
-          onClick={() => onCambiar(o.valor)}
-        >
-          {o.rotulo}
-        </button>
-      ))}
-    </span>
-  )
-
   return (
     <div className="scroll">
       <div className="view">
@@ -696,27 +682,30 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                     <span className="campo-lbl">
                       Tipo de pedido <span className="campo-req">· obligatorio</span>
                     </span>
-                    {segmentos(
-                      datos.tipoPedido,
-                      [
-                        { valor: TIPO_PEDIDO.COMPRA, rotulo: 'Compra' },
-                        {
-                          valor: TIPO_PEDIDO.CONCESION,
-                          rotulo: 'Concesión',
-                          bloqueado: !puedeConcesion,
-                          titulo: !puedeConcesion ? 'No tenés lugar para pedidos en concesión' : undefined,
-                        },
-                      ],
-                      (v) =>
+                    {/* Viene en COMPRA: la otra opción se ve recién al abrirlo. CONCESIÓN aparece
+                        sólo si el concesionario tiene tope y le queda lugar. */}
+                    <Desplegable
+                      valor={datos.tipoPedido}
+                      opciones={puedeConcesion ? [TIPO_PEDIDO.COMPRA, TIPO_PEDIDO.CONCESION] : [TIPO_PEDIDO.COMPRA]}
+                      sinVacio
+                      onCambiar={(v) =>
                         setDatos({
                           ...datos,
                           tipoPedido: v,
                           /* En concesión no hay pago: lo que se haya elegido no se arrastra. */
                           ...(v === TIPO_PEDIDO.CONCESION
-                            ? { condicionVenta: '', banco: '', conceptoPago: '', plazo: '', descuentoEspecial: null }
+                            ? {
+                                condicionVenta: '',
+                                banco: '',
+                                conceptoPago: '',
+                                plazo: '',
+                                descuentoEspecial: null,
+                                observacionEspecial: '',
+                              }
                             : {}),
-                        }),
-                    )}
+                        })
+                      }
+                    />
                     <span className="campo-ayuda">
                       {miConcesionario && !sinPedidos
                         ? concesiones.limite > 0
@@ -779,14 +768,12 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                       <span className="campo-lbl">
                         Tipo de factura <span className="campo-req">· obligatorio</span>
                       </span>
-                      {segmentos(
-                        datos.tipoFactura,
-                        [
-                          { valor: TIPO_FACTURA.INMEDIATA, rotulo: 'Inmediata' },
-                          { valor: TIPO_FACTURA.DIFERIDA, rotulo: 'Diferida' },
-                        ],
-                        (v) => setDatos({ ...datos, tipoFactura: v }),
-                      )}
+                      <Desplegable
+                        valor={datos.tipoFactura}
+                        opciones={[TIPO_FACTURA.INMEDIATA, TIPO_FACTURA.DIFERIDA]}
+                        sinVacio
+                        onCambiar={(v) => setDatos({ ...datos, tipoFactura: v })}
+                      />
                     </div>
                   )}
 
@@ -949,7 +936,12 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                             checked={usaEspecial}
                             onChange={(e) => {
                               setTextoEspecial('')
-                              setDatos({ ...datos, descuentoEspecial: e.target.checked ? 0 : null })
+                              setErrorObservacion(false)
+                              setDatos({
+                                ...datos,
+                                descuentoEspecial: e.target.checked ? 0 : null,
+                                observacionEspecial: e.target.checked ? datos.observacionEspecial : '',
+                              })
                             }}
                           />
                           Operatoria especial
@@ -974,10 +966,32 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                         )}
                       </div>
                     )}
-                    <span className="campo-ayuda">
-                      Se aplican uno sobre otro, en ese orden: por eso el total no es la suma.
-                      {usaEspecial ? ' Queda registrado como Operatoria Especial.' : ` Sin tildar, el pedido va con la ${POLITICA_CONTADO.ESTANDAR}.`}
-                    </span>
+                    {/* Con la casilla tildada hay que decir por qué: queda en el pedido. */}
+                    {usaEspecial && (
+                      <label className="campo especial-obs">
+                        <span className="campo-lbl">
+                          Observaciones de la operatoria especial{' '}
+                          <span className="campo-req">· obligatorio</span>
+                        </span>
+                        <textarea
+                          className={`input textarea${errorObservacion && !datos.observacionEspecial.trim() ? ' input--error' : ''}`}
+                          rows={2}
+                          placeholder="Por qué este pedido va con operatoria especial…"
+                          value={datos.observacionEspecial}
+                          onChange={(e) => {
+                            setErrorObservacion(false)
+                            setDatos({ ...datos, observacionEspecial: e.target.value })
+                          }}
+                        />
+                        {errorObservacion && !datos.observacionEspecial.trim() && (
+                          <span className="campo-ayuda campo-ayuda--falta">
+                            <i className="fa-solid fa-circle-exclamation" aria-hidden="true" /> Se
+                            requieren las observaciones para la operatoria especial.
+                          </span>
+                        )}
+                      </label>
+                    )}
+                    <span className="campo-ayuda">Descuentos de Contado se aplican en cascada</span>
                   </div>
                 )}
 
@@ -1093,6 +1107,12 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
                       </dd>
                     </div>
                   )}
+                  {!concesion && contado && usaEspecial && (
+                    <div>
+                      <dt>Observaciones</dt>
+                      <dd>{datos.observacionEspecial.trim() || '—'}</dd>
+                    </div>
+                  )}
                   {datos.banco && (
                     <div>
                       <dt>Banco</dt>
@@ -1185,7 +1205,14 @@ export function CrearPedido({ equipos, esAdministracion, comercialId = '', onIrA
               type="button"
               className="btn btn--primario"
               disabled={!puedeSeguir}
-              onClick={() => setPaso(paso + 1)}
+              onClick={() => {
+                /* Las observaciones no bloquean el botón: al intentar seguir se dice qué falta. */
+                if (paso === 3 && faltaObservacion) {
+                  setErrorObservacion(true)
+                  return
+                }
+                setPaso(paso + 1)
+              }}
             >
               Seguir →
             </button>

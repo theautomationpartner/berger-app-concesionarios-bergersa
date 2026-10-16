@@ -106,6 +106,8 @@ export interface AltaPedido {
    * contado. \`null\` = no la tildó, y el pedido va con la Política Estándar.
    */
   descuentoEspecial: number | null
+  /** Por qué se usa la Operatoria Especial. Obligatoria si se tildó. */
+  observacionEspecial: string
   /** VENTA DIRECTA: a cuánto le vende UNA unidad de cada producto al cliente final, sin IVA. */
   preciosClienteFinal: Record<string, number>
   renglones: RenglonElegido[]
@@ -150,7 +152,7 @@ export interface RenglonCalculado extends RenglonDePedido {
   dtoEspecial: number
   /** VENTA DIRECTA: el precio por unidad que puso el concesionario. \`null\` si no aplica o falta. */
   clienteFinal: number | null
-  /** Cantidad × (lista − precio al cliente final). */
+  /** Cantidad × (precio al cliente final − lo que BERGER le factura por unidad). */
   comision: number
 }
 
@@ -176,8 +178,10 @@ export function calcularRenglones(
       precio,
       dtoEspecial: indiceEspecial >= 0 ? (precio.descuentos[indiceEspecial] ?? 0) : 0,
       clienteFinal,
+      /* La comisión del concesionario es lo que gana por unidad —lo que le cobra al cliente menos
+         lo que BERGER le factura— por la cantidad. */
       comision:
-        clienteFinal != null ? redondear(r.cantidad * (precio.listaSinIva - clienteFinal)) : 0,
+        clienteFinal != null ? redondear(r.cantidad * (clienteFinal - precio.facturaSinIva)) : 0,
     }
   })
 }
@@ -199,6 +203,10 @@ export function problemaClienteFinal(r: RenglonCalculado): string {
   if (r.clienteFinal < minimo) return 'es menor que el precio a facturar'
   return ''
 }
+
+/** Si se tildó la Operatoria Especial (y aplica: sólo con contado). */
+export const usaOperatoriaEspecial = (d: AltaPedido): boolean =>
+  d.descuentoEspecial != null && !esConcesion(d) && esContado(pagoDelPedido(d))
 
 /** Lo que BERGER le factura al cliente final y la comisión del concesionario, en todo el pedido. */
 export function totalesVentaDirecta(renglones: RenglonCalculado[]): {
@@ -235,6 +243,9 @@ export function faltaParaElPedido(
     if (d.descuentoEspecial < 0 || d.descuentoEspecial > extras.especial.maximo) {
       faltan.push(`un descuento especial entre 0% y ${extras.especial.maximo}%`)
     }
+  }
+  if (usaOperatoriaEspecial(d) && !d.observacionEspecial.trim()) {
+    faltan.push('las observaciones de la operatoria especial')
   }
   if (esVentaDirecta(d) && renglones.some((r) => problemaClienteFinal(r))) {
     faltan.push('un precio de venta al cliente final válido en cada tractor')
@@ -450,6 +461,9 @@ export async function crearPedido(
     if (contado) {
       valores[COL_PEDIDO.politicaContado] = {
         label: conEspecial ? POLITICA_CONTADO.ESPECIAL : POLITICA_CONTADO.ESTANDAR,
+      }
+      if (usaOperatoriaEspecial(d) && d.observacionEspecial.trim()) {
+        valores[COL_PEDIDO.observacionEspecial] = { text: d.observacionEspecial.trim() }
       }
     }
   }

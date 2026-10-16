@@ -252,6 +252,7 @@ const COLUMNAS_DE_PEDIDO = new Set<string>([
   COL_PEDIDO.pedidoPara,
   COL_PEDIDO.tipoFactura,
   COL_PEDIDO.politicaContado,
+  COL_PEDIDO.observacionEspecial,
   COL_PEDIDO.totalComision,
   COL_PEDIDO.totalClienteFinal,
   COL_PEDIDO.estado,
